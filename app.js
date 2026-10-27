@@ -80,9 +80,11 @@ stage.addEventListener('pointerdown', onPointerDown, { passive: false });
 stage.addEventListener('pointerup', onPointerEnd);
 stage.addEventListener('pointercancel', onPointerEnd);
 
-// 键盘空格同样可以触发，方便接蓝牙小键盘或在电脑上测试
+// Enter 键同样可以触发，方便接蓝牙小键盘或在电脑上测试。
+// 这里判断 e.key 而不是 e.code：主键盘的 Enter 和小键盘的 Enter
+// 对应 'Enter' 与 'NumpadEnter' 两个不同的 code，但 key 都是 'Enter'。
 window.addEventListener('keydown', (e) => {
-  if (e.code !== 'Space' || e.repeat) return;
+  if (e.key !== 'Enter' || e.repeat) return;
   e.preventDefault();
   handleSlap(e.timeStamp);
 });
