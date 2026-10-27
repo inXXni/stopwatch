@@ -12,13 +12,24 @@
 <!-- iOS 不读 manifest 里的 icons，必须单独给 apple-touch-icon，否则主屏图标会变成网页截图 -->
 <link rel="apple-touch-icon" href="./icon-192.png">
 <link rel="icon" type="image/png" href="./icon-192.png">
+<link rel="preload" href="./fonts/DSEG7Classic-Bold.woff2" as="font" type="font/woff2" crossorigin>
 <style>
+  /* DSEG7 Classic，七段数码管字体。SIL OFL 1.1，许可证见 fonts/DSEG-LICENSE.txt */
+  @font-face {
+    font-family: 'DSEG7';
+    src: url('./fonts/DSEG7Classic-Bold.woff2') format('woff2');
+    font-weight: 700;
+    font-style: normal;
+    /* 字体没加载完就先不显示，避免先闪一下系统字体再跳成七段 */
+    font-display: block;
+  }
+
   :root {
     --ink-idle: #5a1818;
     --ink-running: #ff2d2d;
     --ink-done: #2dff6a;
-    /* 没点亮的段透出的暗色，LED 显示屏最有辨识度的细节 */
-    --ghost-opacity: 0.1;
+    /* 没通电的段透出的暗色，LED 显示屏最有辨识度的细节 */
+    --ghost-opacity: 0.12;
   }
 
   * { margin: 0; padding: 0; box-sizing: border-box; }
@@ -50,21 +61,23 @@
     padding-left: max(4vmin, env(safe-area-inset-left, 0px));
   }
 
-  /* SVG 按 viewBox 等比缩放填满可用空间，不需要再算字号，各种屏幕天然适配 */
+  /* viewBox 由 JS 按字体实际尺寸量出来，之后 SVG 自己等比缩放填满可用空间 */
   #display {
     width: 100%;
     height: 100%;
     color: var(--ink-idle);
-    filter: drop-shadow(0 0 0.45vmin currentColor);
+    filter: drop-shadow(0 0 0.4vmin currentColor);
     transition: color 80ms linear;
   }
 
-  .seg {
+  #display text {
+    font-family: 'DSEG7', monospace;
+    font-size: 100px; /* 基准值，最终大小取决于 viewBox 缩放 */
     fill: currentColor;
-    opacity: var(--ghost-opacity);
   }
 
-  .seg.on { opacity: 1; }
+  /* 幽灵层垫在读数下面，两层右对齐叠放 */
+  #ghost { opacity: var(--ghost-opacity); }
 
   #stage[data-state="RUNNING"] #display { color: var(--ink-running); }
   #stage[data-state="LOCKED"]  #display,
@@ -73,7 +86,10 @@
 </head>
 <body>
   <div id="stage" data-state="IDLE">
-    <svg id="display" preserveAspectRatio="xMidYMid meet" aria-label="计时显示"></svg>
+    <svg id="display" preserveAspectRatio="xMidYMid meet" aria-label="计时显示">
+      <text id="ghost" x="0" y="0" text-anchor="end">88.88</text>
+      <text id="value" x="0" y="0" text-anchor="end">0.00</text>
+    </svg>
   </div>
   <script type="module" src="./app.js"></script>
 </body>

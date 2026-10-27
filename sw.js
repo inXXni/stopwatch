@@ -1,5 +1,5 @@
 // 全部资源都是静态的，用 cache-first。改动文件后记得把 CACHE 版本号加一。
-const CACHE = 'slap-stopwatch-v3';
+const CACHE = 'slap-stopwatch-v4';
 
 const ASSETS = [
   './',
@@ -9,6 +9,7 @@ const ASSETS = [
   './manifest.json',
   './icon-192.png',
   './icon-512.png',
+  './fonts/DSEG7Classic-Bold.woff2',
 ];
 
 self.addEventListener('install', (event) => {

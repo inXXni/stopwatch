@@ -47,38 +47,13 @@ export function nextState(state, event) {
 }
 
 /**
- * 七段数码管的段命名，与实物一致：
+ * 生成幽灵层的文本：每一位都换成 8（七段全亮），整数部分至少两位。
  *
- *    aaa
- *   f   b
- *   f   b
- *    ggg
- *   e   c
- *   e   c
- *    ddd
- *
- * 空格代表整位熄灭（只剩暗色的幽灵段），用于秒数不足两位时占位。
+ * 幽灵层以暗色垫在读数下面，模拟 LED 显示屏上没通电的段——这是 LED 牌最有
+ * 辨识度的细节。两层右对齐叠放，所以读数不足两位秒时，左边会自然空出一个
+ * 全暗的 8，布局也因此始终固定，数字不会因为位数变化而整体缩放跳动。
  */
-export const SEGMENTS = {
-  '0': 'abcdef',
-  '1': 'bc',
-  '2': 'abdeg',
-  '3': 'abcdg',
-  '4': 'bcfg',
-  '5': 'acdfg',
-  '6': 'acdefg',
-  '7': 'abc',
-  '8': 'abcdefg',
-  '9': 'abcdfg',
-  ' ': '',
-};
-
-/**
- * 把 formatTime 的输出拆成逐位的显示单元，例如 "12.34" -> ['1','2','.','3','4']。
- * 秒数不足两位时前面补一个熄灭位（"9.87" -> [' ','9','.','8','7']），
- * 这样常规成绩的布局始终是固定的四位数字，数字不会因为位数变化而整体缩放跳动。
- */
-export function toDisplayCells(text) {
+export function ghostOf(text) {
   const [intPart, fracPart] = String(text).split('.');
-  return [...intPart.padStart(2, ' '), '.', ...fracPart];
+  return '8'.repeat(Math.max(2, intPart.length)) + '.' + '8'.repeat(fracPart.length);
 }
