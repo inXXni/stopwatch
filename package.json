@@ -5,7 +5,7 @@
   "type": "module",
   "description": "魔方速拧比赛现场用的全屏大字手拍秒表",
   "scripts": {
-    "test": "node --test test/",
+    "test": "node --test",
     "icons": "node tools/make-icons.mjs",
     "serve": "python3 -m http.server 8080"
   }
