@@ -112,3 +112,11 @@ document.addEventListener('visibilitychange', () => {
 });
 
 acquireWakeLock();
+
+// ---- 离线支持 ----
+// 注册失败不影响计时功能，静默降级为普通网页。
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register('./sw.js').catch(() => {});
+  });
+}
