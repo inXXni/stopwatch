@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { formatTime } from '../timer-core.js';
+import { formatTime, State, Event, nextState } from '../timer-core.js';
 
 test('formatTime: 零值显示 0.00', () => {
   assert.equal(formatTime(0), '0.00');
@@ -42,4 +42,38 @@ test('formatTime: 非法输入兜底为 0.00', () => {
   assert.equal(formatTime(NaN), '0.00');
   assert.equal(formatTime(Infinity), '0.00');
   assert.equal(formatTime(undefined), '0.00');
+});
+
+test('状态机: 空闲时拍击开始计时', () => {
+  assert.equal(nextState(State.IDLE, Event.SLAP), State.RUNNING);
+});
+
+test('状态机: 计时中拍击进入锁定', () => {
+  assert.equal(nextState(State.RUNNING, Event.SLAP), State.LOCKED);
+});
+
+test('状态机: 锁定期内的拍击被忽略', () => {
+  assert.equal(nextState(State.LOCKED, Event.SLAP), State.LOCKED);
+});
+
+test('状态机: 锁定期结束后进入已停止', () => {
+  assert.equal(nextState(State.LOCKED, Event.UNLOCK), State.STOPPED);
+});
+
+test('状态机: 已停止时拍击开始新一轮', () => {
+  assert.equal(nextState(State.STOPPED, Event.SLAP), State.RUNNING);
+});
+
+test('状态机: 非锁定状态收到 UNLOCK 时保持原状态', () => {
+  assert.equal(nextState(State.IDLE, Event.UNLOCK), State.IDLE);
+  assert.equal(nextState(State.RUNNING, Event.UNLOCK), State.RUNNING);
+  assert.equal(nextState(State.STOPPED, Event.UNLOCK), State.STOPPED);
+});
+
+test('状态机: 未知事件不改变状态', () => {
+  assert.equal(nextState(State.RUNNING, 'BOGUS'), State.RUNNING);
+});
+
+test('状态机: 未知状态原样返回', () => {
+  assert.equal(nextState('BOGUS', Event.SLAP), 'BOGUS');
 });
