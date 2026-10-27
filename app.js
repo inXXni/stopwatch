@@ -48,6 +48,7 @@ function handleSlap(timeStamp) {
 
   if (next === State.RUNNING) {
     startAt = timeStamp;
+    acquireWakeLock(); // 拍击是明确的用户手势，此时申请必定成功
     setState(next);
     render(formatTime(0));
     startLoop();
@@ -89,3 +90,25 @@ window.addEventListener('keydown', (e) => {
 // 兜底：阻止双击缩放与长按菜单
 document.addEventListener('dblclick', (e) => e.preventDefault());
 document.addEventListener('contextmenu', (e) => e.preventDefault());
+
+// ---- 屏幕常亮 ----
+// 不支持 Wake Lock 的浏览器静默降级为不保持常亮，不能抛错影响计时。
+
+let wakeLock = null;
+
+async function acquireWakeLock() {
+  if (!('wakeLock' in navigator) || wakeLock) return;
+  try {
+    wakeLock = await navigator.wakeLock.request('screen');
+    wakeLock.addEventListener('release', () => { wakeLock = null; });
+  } catch {
+    wakeLock = null;
+  }
+}
+
+// 切出页面时系统会自动释放 wake lock，切回来必须重新申请
+document.addEventListener('visibilitychange', () => {
+  if (document.visibilityState === 'visible') acquireWakeLock();
+});
+
+acquireWakeLock();
