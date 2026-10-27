@@ -45,3 +45,40 @@ export function nextState(state, event) {
   }
   return state;
 }
+
+/**
+ * 七段数码管的段命名，与实物一致：
+ *
+ *    aaa
+ *   f   b
+ *   f   b
+ *    ggg
+ *   e   c
+ *   e   c
+ *    ddd
+ *
+ * 空格代表整位熄灭（只剩暗色的幽灵段），用于秒数不足两位时占位。
+ */
+export const SEGMENTS = {
+  '0': 'abcdef',
+  '1': 'bc',
+  '2': 'abdeg',
+  '3': 'abcdg',
+  '4': 'bcfg',
+  '5': 'acdfg',
+  '6': 'acdefg',
+  '7': 'abc',
+  '8': 'abcdefg',
+  '9': 'abcdfg',
+  ' ': '',
+};
+
+/**
+ * 把 formatTime 的输出拆成逐位的显示单元，例如 "12.34" -> ['1','2','.','3','4']。
+ * 秒数不足两位时前面补一个熄灭位（"9.87" -> [' ','9','.','8','7']），
+ * 这样常规成绩的布局始终是固定的四位数字，数字不会因为位数变化而整体缩放跳动。
+ */
+export function toDisplayCells(text) {
+  const [intPart, fracPart] = String(text).split('.');
+  return [...intPart.padStart(2, ' '), '.', ...fracPart];
+}

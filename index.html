@@ -14,9 +14,11 @@
 <link rel="icon" type="image/png" href="./icon-192.png">
 <style>
   :root {
-    --ink-idle: #4a1414;
+    --ink-idle: #5a1818;
     --ink-running: #ff2d2d;
     --ink-done: #2dff6a;
+    /* 没点亮的段透出的暗色，LED 显示屏最有辨识度的细节 */
+    --ghost-opacity: 0.1;
   }
 
   * { margin: 0; padding: 0; box-sizing: border-box; }
@@ -41,25 +43,28 @@
     align-items: center;
     justify-content: center;
     cursor: pointer;
+    /* 取边距与系统安全区的较大者，横屏时数字才不会被刘海挡住 */
+    padding-top: max(4vmin, env(safe-area-inset-top, 0px));
+    padding-right: max(4vmin, env(safe-area-inset-right, 0px));
+    padding-bottom: max(4vmin, env(safe-area-inset-bottom, 0px));
+    padding-left: max(4vmin, env(safe-area-inset-left, 0px));
   }
 
+  /* SVG 按 viewBox 等比缩放填满可用空间，不需要再算字号，各种屏幕天然适配 */
   #display {
-    /* 等宽数字：比例字形下 1 比 8 窄，计时过程中数字会持续左右抖动 */
-    font-family: ui-monospace, "SF Mono", SFMono-Regular, Menlo, Consolas, monospace;
-    font-variant-numeric: tabular-nums;
-    font-feature-settings: "tnum" 1;
-    font-weight: 700;
-    letter-spacing: 0.02em;
-    line-height: 1;
-    /* 按 5 个等宽字符（12.34）占满约 90% 宽度反推字号，同时限制高度不溢出 */
-    font-size: min(30vw, 55vh);
+    width: 100%;
+    height: 100%;
     color: var(--ink-idle);
-    text-shadow: 0 0 0.12em currentColor, 0 0 0.3em currentColor;
+    filter: drop-shadow(0 0 0.45vmin currentColor);
     transition: color 80ms linear;
   }
 
-  /* 待机态颜色暗，用同样强的光晕会显得发糊，单独减弱一档 */
-  #stage[data-state="IDLE"] #display { text-shadow: 0 0 0.1em currentColor; }
+  .seg {
+    fill: currentColor;
+    opacity: var(--ghost-opacity);
+  }
+
+  .seg.on { opacity: 1; }
 
   #stage[data-state="RUNNING"] #display { color: var(--ink-running); }
   #stage[data-state="LOCKED"]  #display,
@@ -68,7 +73,7 @@
 </head>
 <body>
   <div id="stage" data-state="IDLE">
-    <div id="display">0.00</div>
+    <svg id="display" preserveAspectRatio="xMidYMid meet" aria-label="计时显示"></svg>
   </div>
   <script type="module" src="./app.js"></script>
 </body>
