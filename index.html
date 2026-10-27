@@ -80,8 +80,14 @@
   #ghost { opacity: var(--ghost-opacity); }
 
   #stage[data-state="RUNNING"] #display { color: var(--ink-running); }
+
+  /* 默认全程红色，和实物 LED 牌一致 */
   #stage[data-state="LOCKED"]  #display,
-  #stage[data-state="STOPPED"] #display { color: var(--ink-done); }
+  #stage[data-state="STOPPED"] #display { color: var(--ink-running); }
+
+  /* 带 ?green 参数访问时，停表变绿，便于一眼看出表已经停了 */
+  :root[data-green-stop] #stage[data-state="LOCKED"]  #display,
+  :root[data-green-stop] #stage[data-state="STOPPED"] #display { color: var(--ink-done); }
 </style>
 </head>
 <body>

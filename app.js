@@ -2,6 +2,12 @@ import { formatTime, nextState, State, Event, ghostOf } from './timer-core.js';
 
 const LOCK_MS = 500; // 停表后的封锁时长，防手掌反弹与多指造成的二次触发
 
+// 默认全程红色。带 ?green 参数访问时停表变绿，便于一眼看出表已经停了。
+// 在 iPhone 上用带参数的地址「添加到主屏幕」，那个图标就固定是绿色版。
+if (new URLSearchParams(location.search).has('green')) {
+  document.documentElement.dataset.greenStop = '';
+}
+
 const stage = document.getElementById('stage');
 const display = document.getElementById('display');
 
