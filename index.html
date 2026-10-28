@@ -93,8 +93,8 @@
   .slot[data-slot-state="running"] .display { color: var(--ink-running); }
   .slot[data-slot-state="done"]    .display { color: var(--ink-running); }
 
-  /* ?green 只对普通秒表生效。PK 模式下绿色会被读成「这一方获胜」，故排除 */
-  :root[data-green-stop]:not([data-pk]) .slot[data-slot-state="done"] .display {
+  /* ?green：停表变绿。两种模式都吃这个参数，PK 下两格各自定格后分别变绿 */
+  :root[data-green-stop] .slot[data-slot-state="done"] .display {
     color: var(--ink-done);
   }
 </style>
