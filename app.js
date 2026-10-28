@@ -2,7 +2,7 @@ import {
   formatTime, nextState, nextPkState, State, PkState, Event,
   SlotState, pkSlotStates, slotStateOf,
 } from './timer-core.js';
-import { createDisplay } from './display.js';
+import { createDisplay, spineDigitsWidth } from './display.js';
 
 const LOCK_MS = 500; // 停表后的封锁时长，防手掌反弹与多指造成的二次触发
 
@@ -18,22 +18,46 @@ if (isPk) document.documentElement.dataset.pk = '';
 const stage = document.getElementById('stage');
 const slots = [...stage.querySelectorAll('.slot')];
 
-// PK 模式的色条和数字一样高。数字的实际高度由格子宽高与 viewBox 共同决定：
-// 横屏时受格子高度限制，竖屏时受宽度限制会变矮，色条若按格子高度算就会比数字长。
-// 所以直接量幽灵层的渲染高度写给色条：viewBox 变了（字体加载完、超过 99 秒加宽）
-// 或格子尺寸变了（转屏、窗口缩放）都重新量一次。
-function syncStripe(slot) {
+// PK 模式的排版要按数字的实际渲染尺寸来定，CSS 算不出来，由这里量好写回：
+// - 色条和数字一样高。数字的实际高度由格子宽高与 viewBox 共同决定，
+//   竖屏时受宽度限制会变矮，色条若按格子高度算就会比数字长。
+// - 宽屏横屏的色条脊柱排法要把「脊柱列 + 数字框」整组居中，需要知道数字框宽度：
+//   每格的 --w 写在各自的 SVG 上，两格中较宽的 --digits-w 写在 #stage 上。
+//   其余排法的 CSS 不读这两个变量。
+// viewBox 变了（字体加载完、超过 99 秒加宽）或格子尺寸变了（转屏、窗口缩放）都重新算一次。
+function syncLayout() {
   if (!isPk) return;
-  const h = slot.querySelector('.ghost').getBoundingClientRect().height;
-  if (h) slot.querySelector('.stripe').style.height = `${h}px`;
+  const widths = slots.map((slot) => {
+    const svg = slot.querySelector('.display');
+    const vb = svg.viewBox.baseVal;
+    if (!vb || !vb.width) return 0; // 还没量出 viewBox
+    const box = slot.getBoundingClientRect();
+    const stripe = getComputedStyle(slot.querySelector('.stripe'));
+    const w = spineDigitsWidth({
+      slotWidth: box.width,
+      slotHeight: box.height,
+      aspect: vb.width / vb.height,
+      // 色条连同左右外边距，就是脊柱列加间距
+      reserved: parseFloat(stripe.width) + parseFloat(stripe.marginLeft) + parseFloat(stripe.marginRight),
+    });
+    svg.style.setProperty('--w', `${w}px`);
+    return w;
+  });
+  stage.style.setProperty('--digits-w', `${Math.max(...widths)}px`);
+  // 宽度写好之后再量高度，读取时浏览器会先按新宽度排版
+  for (const slot of slots) {
+    const h = slot.querySelector('.ghost').getBoundingClientRect().height;
+    if (h) slot.querySelector('.stripe').style.height = `${h}px`;
+  }
 }
 
 const displays = slots.map((slot) =>
-  createDisplay(slot.querySelector('.display'), { onFit: () => syncStripe(slot) }));
+  createDisplay(slot.querySelector('.display'), { onFit: syncLayout }));
 
 if (isPk && 'ResizeObserver' in window) {
-  const ro = new ResizeObserver((entries) => entries.forEach((e) => syncStripe(e.target)));
-  slots.forEach((slot) => ro.observe(slot));
+  // 盯边框盒：脊柱排法会改格子的左右内边距，盯内容盒的话，写回变量又会触发自己
+  const ro = new ResizeObserver(syncLayout);
+  slots.forEach((slot) => ro.observe(slot, { box: 'border-box' }));
 }
 
 function paintSlots(states) {

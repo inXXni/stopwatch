@@ -169,6 +169,58 @@
     from { opacity: 1; }
     to { opacity: 0.15; }
   }
+
+  /* ---- PK 的 VS 按屏幕分三种排法 ----
+     宽屏横屏：VS 移到左侧，与两根色条连成一根竖脊，两行之间只留窄缝。手机横屏受高度限制，
+     两侧本来空着，VS 放在那里不占数字的地方，两行靠拢后数字反而更大。
+     竖屏：数字受宽度限制，上下本来空着，VS 留在中间放大。
+     其余横屏（iPad 等接近方形的屏幕）：两侧没有空白，保持上面的原样。 */
+
+  @media (orientation: portrait), (orientation: landscape) and (min-aspect-ratio: 16/9) {
+    :root[data-pk] .vs span { text-shadow: 0 0 1.2vmin rgba(255, 176, 32, 0.5); }
+  }
+
+  @media (orientation: portrait) {
+    :root[data-pk] .vs {
+      height: 15vmin;
+      gap: 4vmin;
+      font: italic 900 11vmin/1 system-ui, sans-serif;
+    }
+    :root[data-pk] .vs::before,
+    :root[data-pk] .vs::after { height: 0.5vmin; }
+  }
+
+  /* 色条脊柱：每行是「脊柱列 26vmin + 间距 2.5vmin + 数字框」，整组水平居中。
+     数字框宽度由 app.js 按字体量出的 viewBox 算好：每格的 --w 写在各自的 SVG 上，
+     两格中较宽的 --digits-w 写在 #stage 上。两格与 VS 这一行用同一份左右留白，
+     色条和 VS 才落在同一条竖线上；数字靠右，两格位数不同时小数点仍上下对齐。 */
+  @media (orientation: landscape) and (min-aspect-ratio: 16/9) {
+    :root[data-pk] :is(.slot, .vs) {
+      justify-content: flex-start;
+      padding-inline: max(0px, calc((100% - 28.5vmin - var(--digits-w, 0px)) / 2));
+    }
+    :root[data-pk] .stripe { margin-left: 12.25vmin; margin-right: 14.75vmin; }
+    :root[data-pk] .display { flex: none; width: var(--w, 0px); margin-left: auto; }
+
+    /* 两行之间的窄缝就是 VS 这一行。VS 比它高，上下溢出，正好压在两根色条的接缝上 */
+    :root[data-pk] .vs {
+      height: 3vmin;
+      gap: 0;
+      font: italic 900 18vmin/1 system-ui, sans-serif;
+    }
+    :root[data-pk] .vs::before,
+    :root[data-pk] .vs::after { display: none; }
+    /* 黑底把两根色条在接缝处截断；提到格子上层，否则会被下一格盖住 */
+    :root[data-pk] .vs span {
+      flex: none;
+      width: 26vmin;
+      padding-block: 1vmin;
+      text-align: center;
+      background: #000;
+      position: relative;
+      z-index: 1;
+    }
+  }
 </style>
 </head>
 <body>
@@ -180,7 +232,7 @@
         <text class="value" x="0" y="0" text-anchor="end">0.00</text>
       </svg>
     </div>
-    <div class="vs" aria-hidden="true">VS</div>
+    <div class="vs" aria-hidden="true"><span>VS</span></div>
     <div class="slot" data-side="blue" data-slot-state="empty">
       <div class="stripe"></div>
       <svg class="display" preserveAspectRatio="xMidYMid meet" aria-label="选手二计时">
