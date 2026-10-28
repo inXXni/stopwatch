@@ -8,21 +8,27 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="秒表">
-<link rel="manifest" href="./manifest.json">
 <script>
-  // 按地址参数选用对应的 manifest：每种组合一份，各自写明 start_url，
+  // 按地址参数插入对应的 manifest 链接：每种组合一份，各自写明 start_url，
   // 安装到桌面的图标才会打开对应模式，名字也互不相同。文件由 npm run manifests 生成，
   // 文件名规则与名字必须和 tools/make-manifests.mjs 保持一致。
   // PK 模式忽略 green：红蓝是阵营色，停表变绿会把阵营抹掉，?pk&green 按 ?pk 处理。
+  //
+  // 链接不能先写死一份默认的再改 href：Safari 一看到第一个 manifest 链接就立刻加载并
+  // 记住它，之后改 href 不会重新加载，iPad / iPhone「添加到主屏幕」用的仍是默认那份，
+  // 存下的地址不带参数。所以这里按参数一次插入正确的那一份。
   (() => {
     const q = new URLSearchParams(location.search);
     const pk = q.has('pk');
     const green = q.has('green');
-    if (!pk && !green) return;
-    document.querySelector('link[rel="manifest"]').href =
-      pk ? './manifest-pk.json' : './manifest-green.json';
-    document.querySelector('meta[name="apple-mobile-web-app-title"]').content =
-      pk ? 'PK 秒表' : '秒表 绿';
+    const link = document.createElement('link');
+    link.rel = 'manifest';
+    link.href = pk ? './manifest-pk.json' : green ? './manifest-green.json' : './manifest.json';
+    document.head.append(link);
+    if (pk || green) {
+      document.querySelector('meta[name="apple-mobile-web-app-title"]').content =
+        pk ? 'PK 秒表' : '秒表 绿';
+    }
   })();
 </script>
 <!-- iOS 不读 manifest 里的 icons，必须单独给 apple-touch-icon，否则主屏图标会变成网页截图 -->

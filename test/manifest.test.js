@@ -33,16 +33,29 @@ function swAssets() {
   return block[1].split(',').map((s) => s.trim().replace(/^['"]|['"]$/g, '')).filter(Boolean);
 }
 
-// 把 index.html 头部那段选 manifest 的内联脚本取出来，在隔离的上下文里配上假的
+// 把 index.html 头部那段插入 manifest 链接的内联脚本取出来，在隔离的上下文里配上假的
 // location 与 document 执行，直接验证页面实际使用的规则，而不是在测试里再抄一遍
 function runHeadScript(search) {
   const src = read('index.html').match(/<script>([\s\S]*?)<\/script>/)[1];
-  const link = { href: './manifest.json' };
+  const inserted = [];
   const meta = { content: '秒表' };
-  const document = { querySelector: (sel) => (sel.startsWith('link') ? link : meta) };
+  const document = {
+    head: { append: (...els) => inserted.push(...els) },
+    createElement: (tagName) => ({ tagName }),
+    querySelector: (sel) => (sel.startsWith('meta') ? meta : null),
+  };
   runInNewContext(src, { location: { search }, document, URLSearchParams });
-  return { manifest: link.href, title: meta.content };
+  const links = inserted.filter((el) => el.tagName === 'link' && el.rel === 'manifest');
+  assert.equal(links.length, 1, `${search || '不带参数'} 时应当正好插入一个 manifest 链接`);
+  return { manifest: links[0].href, title: meta.content };
 }
+
+test('index.html: 不写死 manifest 链接', () => {
+  // Safari 一看到第一个 manifest 链接就立刻加载并记住它，之后改 href 不会重新加载，
+  // 「添加到主屏幕」用的仍是最早那份。写死一份默认的再用脚本替换，iPad 上从 ?pk 添加
+  // 存下的就是不带参数的地址。所以链接只能由脚本按参数一次插入正确的那份。
+  assert.doesNotMatch(read('index.html'), /<link[^>]*rel="manifest"/);
+});
 
 test('index.html: 按地址参数选 manifest，PK 模式忽略 green', () => {
   assert.deepEqual(runHeadScript(''), { manifest: './manifest.json', title: '秒表' });

@@ -55,8 +55,8 @@ iOS Safari：分享 →「添加到主屏幕」），再从桌面图标启动才
 PK 模式忽略 `?green`（红蓝是阵营色，停表变绿会把阵营抹掉），`?pk&green` 用的也是
 `manifest-pk.json`。
 
-`index.html` 头部的一段内联脚本按地址参数选用对应文件，并同步 iOS 的
-`apple-mobile-web-app-title`。三份文件由 `npm run manifests` 生成，不手改。
+`index.html` 不写死 manifest 链接，由头部的一段内联脚本按地址参数插入对应文件的链接，
+并同步 iOS 的 `apple-mobile-web-app-title`。三份文件由 `npm run manifests` 生成，不手改。
 
 为什么这样做：
 
@@ -65,6 +65,10 @@ PK 模式忽略 `?green`（红蓝是阵营色，停表变绿会把阵营抹掉�
   几种组合还会被当成同一个应用，只能装一个。
 - 不能靠省略 `start_url` 让它跟随安装时的地址：Chrome 要求显式写出 `start_url`
   才允许安装，省略会报 `start-url-not-valid`，「安装」选项直接消失。
+- 不能先写死一份默认的链接再用脚本改 `href`：Safari（WebKit）一看到第一个 manifest
+  链接就立刻加载并记住它，之后改 `href` 不会重新加载，「添加到主屏幕」用的仍是默认那份。
+  2026-10-28 发现 iPad 上从 `?pk` 添加，存下的地址不带参数，就是这个原因；
+  安卓 Chrome 在安装时才读当前的链接，不受影响。
 
 Service Worker 查缓存时用 `ignoreSearch: true`：几种参数打开的都是同一个 `index.html`，
 缓存里存的是不带参数的地址，不忽略参数的话带参数的地址断网时打不开。
