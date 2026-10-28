@@ -5,29 +5,29 @@ import {
   PkState, nextPkState, SlotState, pkSlotStates, slotStateOf,
 } from '../timer-core.js';
 
-test('formatTime: 零值显示 0.00', () => {
-  assert.equal(formatTime(0), '0.00');
+test('formatTime: 零值显示 00.00，所有位都点亮', () => {
+  assert.equal(formatTime(0), '00.00');
 });
 
 test('formatTime: 不足一个百分秒的毫秒被截断', () => {
-  assert.equal(formatTime(5), '0.00');
-  assert.equal(formatTime(9), '0.00');
+  assert.equal(formatTime(5), '00.00');
+  assert.equal(formatTime(9), '00.00');
 });
 
 test('formatTime: 百分秒补零', () => {
-  assert.equal(formatTime(10), '0.01');
-  assert.equal(formatTime(1050), '1.05');
+  assert.equal(formatTime(10), '00.01');
+  assert.equal(formatTime(1050), '01.05');
 });
 
-test('formatTime: 常规成绩', () => {
-  assert.equal(formatTime(1234), '1.23');
+test('formatTime: 秒数始终补足两位，个位数成绩左边不会熄灭', () => {
+  assert.equal(formatTime(1234), '01.23');
+  assert.equal(formatTime(9870), '09.87');
   assert.equal(formatTime(12345), '12.34');
-  assert.equal(formatTime(9870), '9.87');
 });
 
 test('formatTime: 向下截断而非四舍五入', () => {
   assert.equal(formatTime(12999), '12.99');
-  assert.equal(formatTime(999), '0.99');
+  assert.equal(formatTime(999), '00.99');
 });
 
 test('formatTime: 一分钟边界', () => {
@@ -40,11 +40,11 @@ test('formatTime: 超过一分钟继续累加秒数，不切分钟格式', () =>
   assert.equal(formatTime(123450), '123.45');
 });
 
-test('formatTime: 非法输入兜底为 0.00', () => {
-  assert.equal(formatTime(-5), '0.00');
-  assert.equal(formatTime(NaN), '0.00');
-  assert.equal(formatTime(Infinity), '0.00');
-  assert.equal(formatTime(undefined), '0.00');
+test('formatTime: 非法输入兜底为 00.00', () => {
+  assert.equal(formatTime(-5), '00.00');
+  assert.equal(formatTime(NaN), '00.00');
+  assert.equal(formatTime(Infinity), '00.00');
+  assert.equal(formatTime(undefined), '00.00');
 });
 
 test('状态机: 空闲时拍击开始计时', () => {
@@ -86,9 +86,9 @@ test('幽灵层: 常规两位秒数垫 88.88', () => {
   assert.equal(ghostOf('60.00'), '88.88');
 });
 
-test('幽灵层: 一位秒数也垫两位，左边空出一个全暗的 8', () => {
-  assert.equal(ghostOf('9.87'), '88.88');
-  assert.equal(ghostOf('0.00'), '88.88');
+test('幽灵层: 读数已补足两位秒，幽灵层与之等长', () => {
+  assert.equal(ghostOf('09.87'), '88.88');
+  assert.equal(ghostOf('00.00'), '88.88');
 });
 
 test('幽灵层: 超过 99 秒时跟着加宽', () => {
@@ -96,7 +96,7 @@ test('幽灵层: 超过 99 秒时跟着加宽', () => {
 });
 
 test('幽灵层: 长度不短于读数，否则右对齐叠放时会露出来', () => {
-  for (const text of ['0.00', '9.87', '12.34', '60.00', '123.45']) {
+  for (const text of ['00.00', '09.87', '12.34', '60.00', '123.45']) {
     assert.ok(ghostOf(text).length >= text.length, `"${text}" 的幽灵层太短`);
   }
 });
