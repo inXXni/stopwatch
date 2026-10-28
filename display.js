@@ -52,3 +52,13 @@ export function createDisplay(svg, { onFit } = {}) {
 
   return { render, fit };
 }
+
+/**
+ * 宽屏 PK 的色条脊柱排法里，一格数字框应占的宽度（CSS 像素）。
+ *
+ * 数字框与格子等高时最大，即「格子高度 × viewBox 宽高比」；格子宽度扣掉脊柱列与
+ * 间距（reserved）后放不下时，取剩下的宽度，数字随之按宽度缩小。
+ */
+export function spineDigitsWidth({ slotWidth, slotHeight, aspect, reserved }) {
+  return Math.max(0, Math.min(slotHeight * aspect, slotWidth - reserved));
+}
