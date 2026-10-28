@@ -1,10 +1,11 @@
 // 全部资源都是静态的，用 cache-first。改动文件后记得把 CACHE 版本号加一。
-const CACHE = 'slap-stopwatch-v5';
+const CACHE = 'slap-stopwatch-v6';
 
 const ASSETS = [
   './',
   './index.html',
   './app.js',
+  './display.js',
   './timer-core.js',
   './manifest.json',
   './icon-192.png',
