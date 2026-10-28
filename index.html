@@ -41,10 +41,17 @@
   }
 
   :root {
-    /* 点亮的数字。待机、计时、定格三态同色——实物 LED 牌待机时 00.00 也是亮着的 */
+    /* 点亮的数字。待机、计时、定格三态同色——实物 LED 牌待机时 00.00 也是亮着的。
+       PK 模式下是上格（红方）的颜色 */
     --ink: #ff2d2d;
-    /* 带 ?green 时定格后转成的颜色 */
+    /* PK 模式下格（蓝方）的颜色。蓝色在黑底上天然显得比红色暗，两方亮度不等会削弱
+       公平感，所以挑相对亮度接近的：#ff2d2d 为 0.233，#3d8bff 为 0.267 */
+    --ink-blue: #3d8bff;
+    /* 带 ?green 时定格后转成的颜色，只用于普通模式 */
     --ink-green: #2dff6a;
+    /* PK 模式中间「VS」的颜色，与两侧细线的颜色 */
+    --ink-vs: #ffb020;
+    --rule: #3a3a3a;
     /* 没通电的段透出的暗色，LED 显示屏最有辨识度的细节 */
     --ghost-opacity: 0.12;
   }
@@ -84,18 +91,21 @@
     display: flex;
     align-items: center;
     justify-content: center;
+    /* 颜色挂在格子上，数字和色条都用 currentColor 跟着走 */
+    color: var(--ink);
+    transition: color 80ms linear;
   }
 
   /* 不带 ?pk 时只留一格，占满整屏，外观与单人模式完全一致 */
-  :root:not([data-pk]) .slot:nth-child(2) { display: none; }
+  :root:not([data-pk]) :is(.slot[data-side="blue"], .vs, .stripe) { display: none; }
 
-  /* viewBox 由 JS 按字体实际尺寸量出来，之后 SVG 自己等比缩放填满可用空间 */
+  /* viewBox 由 JS 按字体实际尺寸量出来，之后 SVG 自己等比缩放填满可用空间。
+     用 flex 占满色条以外的宽度；min-width 归零，否则 SVG 不肯收窄给色条让位 */
   .display {
-    width: 100%;
+    flex: 1 1 0;
+    min-width: 0;
     height: 100%;
-    color: var(--ink);
     filter: drop-shadow(0 0 0.4vmin currentColor);
-    transition: color 80ms linear;
   }
 
   .display text {
@@ -107,24 +117,70 @@
   /* 幽灵层垫在读数下面，两层右对齐叠放 */
   .ghost { opacity: var(--ghost-opacity); }
 
-  /* 三态同色，所以不按 slot-state 分别着色。data-slot-state 仍要写在 DOM 上，
-     下面那条 ?green 规则靠它认出「已定格」那一格。 */
+  /* 数字三态同色，所以不按 slot-state 分别着色。data-slot-state 仍要写在 DOM 上，
+     ?green 规则靠它认出「已定格」那一格，PK 的色条靠它决定亮、暗还是闪。 */
 
-  /* ?green：停表变绿。两种模式都吃这个参数，PK 下两格各自定格后分别变绿 */
-  :root[data-green-stop] .slot[data-slot-state="done"] .display {
+  /* ?green：停表变绿，只对普通模式生效（PK 模式下 app.js 不设 data-green-stop） */
+  :root[data-green-stop] .slot[data-slot-state="done"] {
     color: var(--ink-green);
+  }
+
+  /* PK 模式：上格红方、下格蓝方，各状态下都是阵营色 */
+  :root[data-pk] .slot[data-side="blue"] { color: var(--ink-blue); }
+
+  /* 两格之间的 VS 分隔条 */
+  .vs {
+    flex: none;
+    height: 8vmin;
+    display: flex;
+    align-items: center;
+    gap: 3vmin;
+    color: var(--ink-vs);
+    font: 500 5vmin/1 system-ui, sans-serif;
+  }
+
+  .vs::before,
+  .vs::after {
+    content: '';
+    flex: 1;
+    height: 2px;
+    background: var(--rule);
+  }
+
+  /* 左侧色条：轮到谁谁闪，计时中与已定格常亮，还没轮到的变暗 */
+  .stripe {
+    flex: none;
+    width: 1.5vmin;
+    height: 80%;
+    margin-right: 2.5vmin;
+    border-radius: 0.75vmin;
+    background: currentColor;
+  }
+
+  .slot[data-slot-state="empty"] .stripe { opacity: 0.2; }
+
+  .slot[data-slot-state="next"] .stripe {
+    animation: stripe-pulse 0.8s ease-in-out infinite alternate;
+  }
+
+  @keyframes stripe-pulse {
+    from { opacity: 1; }
+    to { opacity: 0.15; }
   }
 </style>
 </head>
 <body>
   <div id="stage">
-    <div class="slot" data-slot-state="empty">
+    <div class="slot" data-side="red" data-slot-state="empty">
+      <div class="stripe"></div>
       <svg class="display" preserveAspectRatio="xMidYMid meet" aria-label="选手一计时">
         <text class="ghost" x="0" y="0" text-anchor="end">88.88</text>
         <text class="value" x="0" y="0" text-anchor="end">0.00</text>
       </svg>
     </div>
-    <div class="slot" data-slot-state="empty">
+    <div class="vs" aria-hidden="true">VS</div>
+    <div class="slot" data-side="blue" data-slot-state="empty">
+      <div class="stripe"></div>
       <svg class="display" preserveAspectRatio="xMidYMid meet" aria-label="选手二计时">
         <text class="ghost" x="0" y="0" text-anchor="end">88.88</text>
         <text class="value" x="0" y="0" text-anchor="end">0.00</text>
