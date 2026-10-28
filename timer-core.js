@@ -98,3 +98,38 @@ export function nextPkState(state, event) {
   }
   return state;
 }
+
+/**
+ * 每一格的视觉状态。两种模式都归一到这三个值，CSS 只认它们，
+ * 着色规则因此只需写一套。
+ */
+export const SlotState = {
+  EMPTY: 'empty',     // 尚未轮到，只显示暗色幽灵层
+  RUNNING: 'running', // 计时中
+  DONE: 'done',       // 已定格
+};
+
+/** 普通模式：只有一格，锁定与停止在视觉上都是「已定格」。 */
+export function slotStateOf(state) {
+  if (state === State.RUNNING) return SlotState.RUNNING;
+  if (state === State.LOCKED || state === State.STOPPED) return SlotState.DONE;
+  return SlotState.EMPTY;
+}
+
+/** PK 模式：返回 [上格, 下格]。 */
+export function pkSlotStates(state) {
+  switch (state) {
+    case PkState.RUN_P1:
+      return [SlotState.RUNNING, SlotState.EMPTY];
+    case PkState.LOCK_P1:
+    case PkState.WAIT_P2:
+      return [SlotState.DONE, SlotState.EMPTY];
+    case PkState.RUN_P2:
+      return [SlotState.DONE, SlotState.RUNNING];
+    case PkState.LOCK_P2:
+    case PkState.RESULT:
+      return [SlotState.DONE, SlotState.DONE];
+    default:
+      return [SlotState.EMPTY, SlotState.EMPTY];
+  }
+}

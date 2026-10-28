@@ -1,6 +1,9 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { formatTime, State, Event, nextState, ghostOf, PkState, nextPkState } from '../timer-core.js';
+import {
+  formatTime, State, Event, nextState, ghostOf,
+  PkState, nextPkState, SlotState, pkSlotStates, slotStateOf,
+} from '../timer-core.js';
 
 test('formatTime: 零值显示 0.00', () => {
   assert.equal(formatTime(0), '0.00');
@@ -155,4 +158,43 @@ test('PK 状态机: 非锁定状态收到 UNLOCK 时保持原状态', () => {
 test('PK 状态机: 未知事件与未知状态原样返回', () => {
   assert.equal(nextPkState(PkState.RUN_P1, 'BOGUS'), PkState.RUN_P1);
   assert.equal(nextPkState('BOGUS', Event.SLAP), 'BOGUS');
+});
+
+test('槽位映射: 普通模式三种状态', () => {
+  assert.equal(slotStateOf(State.IDLE), SlotState.EMPTY);
+  assert.equal(slotStateOf(State.RUNNING), SlotState.RUNNING);
+  assert.equal(slotStateOf(State.LOCKED), SlotState.DONE);
+  assert.equal(slotStateOf(State.STOPPED), SlotState.DONE);
+});
+
+test('槽位映射: PK 空场两格皆空', () => {
+  assert.deepEqual(pkSlotStates(PkState.WAIT_P1), [SlotState.EMPTY, SlotState.EMPTY]);
+});
+
+test('槽位映射: 上格计时中，下格仍空', () => {
+  assert.deepEqual(pkSlotStates(PkState.RUN_P1), [SlotState.RUNNING, SlotState.EMPTY]);
+});
+
+test('槽位映射: 上格定格后下格仍空', () => {
+  assert.deepEqual(pkSlotStates(PkState.LOCK_P1), [SlotState.DONE, SlotState.EMPTY]);
+  assert.deepEqual(pkSlotStates(PkState.WAIT_P2), [SlotState.DONE, SlotState.EMPTY]);
+});
+
+test('槽位映射: 下格计时期间上格保持定格', () => {
+  assert.deepEqual(pkSlotStates(PkState.RUN_P2), [SlotState.DONE, SlotState.RUNNING]);
+});
+
+test('槽位映射: 结果态两格皆定格', () => {
+  assert.deepEqual(pkSlotStates(PkState.LOCK_P2), [SlotState.DONE, SlotState.DONE]);
+  assert.deepEqual(pkSlotStates(PkState.RESULT), [SlotState.DONE, SlotState.DONE]);
+});
+
+test('槽位映射: PK 全部状态都返回两格', () => {
+  for (const s of Object.values(PkState)) {
+    const cells = pkSlotStates(s);
+    assert.equal(cells.length, 2, `${s} 没有返回两格`);
+    for (const c of cells) {
+      assert.ok(Object.values(SlotState).includes(c), `${s} 返回了非法槽位状态 ${c}`);
+    }
+  }
 });
