@@ -1,107 +1,109 @@
-import { formatTime, nextState, State, Event, ghostOf } from './timer-core.js';
+import {
+  formatTime, nextState, nextPkState, State, PkState, Event,
+  SlotState, pkSlotStates, slotStateOf,
+} from './timer-core.js';
+import { createDisplay } from './display.js';
 
 const LOCK_MS = 500; // 停表后的封锁时长，防手掌反弹与多指造成的二次触发
 
-// 默认全程红色。带 ?green 参数访问时停表变绿，便于一眼看出表已经停了。
-// 在 iPhone 上用带参数的地址「添加到主屏幕」，那个图标就固定是绿色版。
-if (new URLSearchParams(location.search).has('green')) {
-  document.documentElement.dataset.greenStop = '';
-}
+const params = new URLSearchParams(location.search);
+const isPk = params.has('pk');
+
+// ?green：停表变绿，便于一眼看出表已经停了。PK 模式不吃这个参数。
+// 在 iPhone 上用带参数的地址「添加到主屏幕」，那个图标就固定带该设置。
+if (params.has('green')) document.documentElement.dataset.greenStop = '';
+if (isPk) document.documentElement.dataset.pk = '';
 
 const stage = document.getElementById('stage');
-const display = document.getElementById('display');
+const slots = [...stage.querySelectorAll('.slot')];
+const displays = slots.map((slot) => createDisplay(slot.querySelector('.display')));
 
-let state = State.IDLE;
+function paintSlots(states) {
+  states.forEach((s, i) => { slots[i].dataset.slotState = s; });
+}
+
+// ---- 计时核心 ----
+// 只负责时间，显示交给当前绑定的那一格。PK 模式下同时只有一格在跑，
+// 已定格的那格不会被碰到。
+
 let startAt = 0;
 let rafId = null;
+let activeDisplay = null;
 let unlockTimer = null;
 let activePointerId = null;
 
-function setState(next) {
-  if (next === state) return;
-  state = next;
-  stage.dataset.state = state;
-}
-
-// ---- 显示 ----
-// 两层文字右对齐叠放：幽灵层固定是全 8（七段全亮）显示为暗色，读数层盖在上面。
-// 读数不足两位秒时左边自然露出一个全暗的 8，正是 LED 牌没通电那一位的样子。
-
-const ghost = document.getElementById('ghost');
-const value = document.getElementById('value');
-
-let lastText = null;
-let lastGhost = null;
-
-// 字号写死在 CSS 里只是个基准值，真实大小由 viewBox 决定。
-// 这里按幽灵层量出来的实际墨水范围设 viewBox，SVG 自己等比缩放填满容器，
-// 不用手算 vw/vh，各种屏幕比例都能占满。
-function fitViewBox() {
-  const box = ghost.getBBox();
-  if (!box.width) return; // 字体还没加载完，量不出东西
-  const pad = box.height * 0.06;
-  display.setAttribute(
-    'viewBox',
-    `${box.x - pad} ${box.y - pad} ${box.width + pad * 2} ${box.height + pad * 2}`
-  );
-}
-
-function render(text) {
-  if (text === lastText) return;
-  lastText = text;
-  display.dataset.value = text; // 挂一份明文，方便测试和调试读取
-  value.textContent = text;
-
-  const g = ghostOf(text);
-  if (g !== lastGhost) { // 只有位数变了才需要重新量，常规使用下只跑一次
-    lastGhost = g;
-    ghost.textContent = g;
-    fitViewBox();
-  }
-}
-
 function tick() {
-  render(formatTime(performance.now() - startAt));
+  activeDisplay.render(formatTime(performance.now() - startAt));
   rafId = requestAnimationFrame(tick);
 }
 
-function startLoop() {
+function startTiming(timeStamp, display) {
+  startAt = timeStamp;
+  activeDisplay = display;
+  acquireWakeLock(); // 拍击是明确的用户手势，此时申请必定成功
+  display.render(formatTime(0));
   if (rafId === null) rafId = requestAnimationFrame(tick);
 }
 
-function stopLoop() {
+function stopTiming(timeStamp) {
   if (rafId !== null) {
     cancelAnimationFrame(rafId);
     rafId = null;
   }
+  activeDisplay.render(formatTime(timeStamp - startAt));
 }
 
-/**
- * 处理一次拍击。
- * timeStamp 取自事件本身而非 performance.now()，
- * 以排除事件派发和 JS 执行的延迟——两者同为相对 performance.timeOrigin 的高精度时间戳。
- */
-function handleSlap(timeStamp) {
+// ---- 模式控制 ----
+// 时间戳取自事件本身而非 performance.now()，以排除事件派发和 JS 执行的延迟
+// ——两者同为相对 performance.timeOrigin 的高精度时间戳。
+
+let state = State.IDLE;
+
+function handleSlapSingle(timeStamp) {
   const next = nextState(state, Event.SLAP);
   if (next === state) return; // LOCKED 状态下被吞掉
+  state = next;
 
   if (next === State.RUNNING) {
-    startAt = timeStamp;
-    acquireWakeLock(); // 拍击是明确的用户手势，此时申请必定成功
-    setState(next);
-    render(formatTime(0));
-    startLoop();
-    return;
+    startTiming(timeStamp, displays[0]);
+  } else if (next === State.LOCKED) {
+    stopTiming(timeStamp);
+    clearTimeout(unlockTimer);
+    unlockTimer = setTimeout(() => {
+      state = nextState(state, Event.UNLOCK);
+      paintSlots([slotStateOf(state), SlotState.EMPTY]);
+    }, LOCK_MS);
   }
 
-  if (next === State.LOCKED) {
-    stopLoop();
-    setState(next);
-    render(formatTime(timeStamp - startAt));
-    clearTimeout(unlockTimer);
-    unlockTimer = setTimeout(() => setState(nextState(state, Event.UNLOCK)), LOCK_MS);
-  }
+  paintSlots([slotStateOf(state), SlotState.EMPTY]);
 }
+
+let pkState = PkState.WAIT_P1;
+
+function handleSlapPk(timeStamp) {
+  const next = nextPkState(pkState, Event.SLAP);
+  if (next === pkState) return; // 锁定期内被吞掉
+  pkState = next;
+
+  if (next === PkState.RUN_P1) {
+    startTiming(timeStamp, displays[0]);
+  } else if (next === PkState.RUN_P2) {
+    startTiming(timeStamp, displays[1]);
+  } else if (next === PkState.LOCK_P1 || next === PkState.LOCK_P2) {
+    stopTiming(timeStamp);
+    clearTimeout(unlockTimer);
+    unlockTimer = setTimeout(() => {
+      pkState = nextPkState(pkState, Event.UNLOCK);
+      paintSlots(pkSlotStates(pkState));
+    }, LOCK_MS);
+  } else if (next === PkState.WAIT_P1) {
+    displays.forEach((d) => d.render(formatTime(0))); // 清场
+  }
+
+  paintSlots(pkSlotStates(pkState));
+}
+
+const handleSlap = isPk ? handleSlapPk : handleSlapSingle;
 
 function onPointerDown(e) {
   // 只认第一根落下的手指，同时落下的其余手指一律忽略
@@ -115,9 +117,9 @@ function onPointerEnd(e) {
   if (e.pointerId === activePointerId) activePointerId = null;
 }
 
-render(formatTime(0));
+paintSlots(isPk ? pkSlotStates(pkState) : [slotStateOf(state), SlotState.EMPTY]);
 // 字体是异步加载的，加载完字形尺寸才确定，必须重新量一次 viewBox
-if (document.fonts) document.fonts.ready.then(fitViewBox);
+if (document.fonts) document.fonts.ready.then(() => displays.forEach((d) => d.fit()));
 
 stage.addEventListener('pointerdown', onPointerDown, { passive: false });
 stage.addEventListener('pointerup', onPointerEnd);
