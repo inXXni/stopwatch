@@ -25,9 +25,10 @@
   }
 
   :root {
-    --ink-idle: #5a1818;
-    --ink-running: #ff2d2d;
-    --ink-done: #2dff6a;
+    /* 点亮的数字。待机、计时、定格三态同色——实物 LED 牌待机时 00.00 也是亮着的 */
+    --ink: #ff2d2d;
+    /* 带 ?green 时定格后转成的颜色 */
+    --ink-green: #2dff6a;
     /* 没通电的段透出的暗色，LED 显示屏最有辨识度的细节 */
     --ghost-opacity: 0.12;
   }
@@ -76,6 +77,7 @@
   .display {
     width: 100%;
     height: 100%;
+    color: var(--ink);
     filter: drop-shadow(0 0 0.4vmin currentColor);
     transition: color 80ms linear;
   }
@@ -89,13 +91,12 @@
   /* 幽灵层垫在读数下面，两层右对齐叠放 */
   .ghost { opacity: var(--ghost-opacity); }
 
-  .slot[data-slot-state="empty"]   .display { color: var(--ink-idle); }
-  .slot[data-slot-state="running"] .display { color: var(--ink-running); }
-  .slot[data-slot-state="done"]    .display { color: var(--ink-running); }
+  /* 三态同色，所以不按 slot-state 分别着色。data-slot-state 仍要写在 DOM 上，
+     下面那条 ?green 规则靠它认出「已定格」那一格。 */
 
   /* ?green：停表变绿。两种模式都吃这个参数，PK 下两格各自定格后分别变绿 */
   :root[data-green-stop] .slot[data-slot-state="done"] .display {
-    color: var(--ink-done);
+    color: var(--ink-green);
   }
 </style>
 </head>
