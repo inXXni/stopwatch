@@ -1,15 +1,13 @@
 import {
   formatTime, nextState, nextPkState, State, PkState, Event,
-  SlotState, pkSlotStates, slotStateOf,
+  SlotState, pkSlotStates, slotStateOf, slapBeeps,
 } from './timer-core.js';
 import { createDisplay, spineDigitsWidth } from './display.js';
 import { createBeeper } from './beep.js';
 
 const LOCK_MS = 500; // 停表后的封锁时长，防手掌反弹与多指造成的二次触发
 
-// 每拍一下都响一声「滴——」，开始、停表、清零、锁定期内被吞掉的拍都响：
-// 响声表示设备收到了这一拍，这一拍做了什么仍以屏幕为准。
-// 总在 handleSlap 之后调用——时间戳已经从事件里取好，发声不影响计时。
+// 拍击提示音，什么时候响见 slap()
 const beeper = createBeeper();
 
 const params = new URLSearchParams(location.search);
@@ -155,13 +153,21 @@ function handleSlapPk(timeStamp) {
 
 const handleSlap = isPk ? handleSlapPk : handleSlapSingle;
 
+// 拍一下。除了清屏那一拍，每拍都响一声「滴——」，锁定期内被吞掉的拍也响：
+// 响声表示设备收到了这一拍，这一拍做了什么仍以屏幕为准。
+// 响不响要按拍击之前的状态判断；发声放在最后，时间戳已经从事件里取好，不影响计时。
+function slap(timeStamp) {
+  const beeps = slapBeeps(isPk ? pkState : state);
+  handleSlap(timeStamp);
+  if (beeps) beeper.beep();
+}
+
 function onPointerDown(e) {
   // 只认第一根落下的手指，同时落下的其余手指一律忽略
   if (activePointerId !== null) return;
   activePointerId = e.pointerId;
   e.preventDefault();
-  handleSlap(e.timeStamp);
-  beeper.beep();
+  slap(e.timeStamp);
 }
 
 function onPointerEnd(e) {
@@ -182,8 +188,7 @@ stage.addEventListener('pointercancel', onPointerEnd);
 window.addEventListener('keydown', (e) => {
   if (e.key !== 'Enter' || e.repeat) return;
   e.preventDefault();
-  handleSlap(e.timeStamp);
-  beeper.beep();
+  slap(e.timeStamp);
 });
 
 // 兜底：阻止双击缩放与长按菜单

@@ -147,3 +147,13 @@ export function pkSlotStates(state) {
       return [SlotState.EMPTY, SlotState.EMPTY];
   }
 }
+
+/**
+ * 这一拍要不要响提示音，传入拍击之前的状态。普通模式与 PK 模式的状态名互不重复，共用一个函数。
+ *
+ * 每拍都响，包括锁定期内被吞掉的拍——响声表示设备收到了这一拍。
+ * 只有清屏那一拍不响：普通模式成绩出来后的清零、PK 模式两人都停后的清场。
+ */
+export function slapBeeps(state) {
+  return state !== State.STOPPED && state !== PkState.RESULT;
+}

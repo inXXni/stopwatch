@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {
   formatTime, State, Event, nextState, ghostOf,
-  PkState, nextPkState, SlotState, pkSlotStates, slotStateOf,
+  PkState, nextPkState, SlotState, pkSlotStates, slotStateOf, slapBeeps,
 } from '../timer-core.js';
 
 test('formatTime: 零值显示 00.00，所有位都点亮', () => {
@@ -223,4 +223,18 @@ test('槽位映射: PK 全部状态都返回两格', () => {
       assert.ok(Object.values(SlotState).includes(c), `${s} 返回了非法槽位状态 ${c}`);
     }
   }
+});
+
+test('提示音: 开始、停表、锁定期内被吞掉的拍都响', () => {
+  for (const s of [State.IDLE, State.RUNNING, State.LOCKED]) {
+    assert.equal(slapBeeps(s), true, `普通模式 ${s} 时拍一下应该响`);
+  }
+  for (const s of [PkState.WAIT_P1, PkState.RUN_P1, PkState.LOCK_P1, PkState.WAIT_P2, PkState.RUN_P2, PkState.LOCK_P2]) {
+    assert.equal(slapBeeps(s), true, `PK 模式 ${s} 时拍一下应该响`);
+  }
+});
+
+test('提示音: 清屏那一拍不响', () => {
+  assert.equal(slapBeeps(State.STOPPED), false, '普通模式成绩出来后那一拍是清零');
+  assert.equal(slapBeeps(PkState.RESULT), false, 'PK 模式两人都停后那一拍是清场');
 });
