@@ -141,6 +141,8 @@ Service Worker 查缓存时用 `ignoreSearch: true`：几种参数打开的都�
   - `user-select: none` —— 禁止文字选中
   - `overscroll-behavior: none` —— 禁止下拉刷新与橡皮筋效果
   - 禁用双击缩放与长按上下文菜单
+- 每拍一下（屏幕或 Enter）都响一声「滴——」，开始、停表、清零与锁定期内被忽略的拍都响，
+  同时落下的其余手指与按住 Enter 的自动重复不响。详见 `2026-10-28-slap-beep-design.md`。
 
 ## 8. 兼容性
 
