@@ -51,8 +51,7 @@
     width: 100%;
     height: 100%;
     display: flex;
-    align-items: center;
-    justify-content: center;
+    flex-direction: column;
     cursor: pointer;
     /* 取边距与系统安全区的较大者，横屏时数字才不会被刘海挡住 */
     padding-top: max(4vmin, env(safe-area-inset-top, 0px));
@@ -61,41 +60,59 @@
     padding-left: max(4vmin, env(safe-area-inset-left, 0px));
   }
 
+  .slot {
+    flex: 1;
+    /* flex 子项默认 min-height:auto，内容会把容器撑破，必须显式归零 */
+    min-height: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  /* 不带 ?pk 时只留一格，占满整屏，外观与单人模式完全一致 */
+  :root:not([data-pk]) .slot:nth-child(2) { display: none; }
+
   /* viewBox 由 JS 按字体实际尺寸量出来，之后 SVG 自己等比缩放填满可用空间 */
-  #display {
+  .display {
     width: 100%;
     height: 100%;
-    color: var(--ink-idle);
     filter: drop-shadow(0 0 0.4vmin currentColor);
     transition: color 80ms linear;
   }
 
-  #display text {
+  .display text {
     font-family: 'DSEG7', monospace;
     font-size: 100px; /* 基准值，最终大小取决于 viewBox 缩放 */
     fill: currentColor;
   }
 
   /* 幽灵层垫在读数下面，两层右对齐叠放 */
-  #ghost { opacity: var(--ghost-opacity); }
+  .ghost { opacity: var(--ghost-opacity); }
 
-  #stage[data-state="RUNNING"] #display { color: var(--ink-running); }
+  .slot[data-slot-state="empty"]   .display { color: var(--ink-idle); }
+  .slot[data-slot-state="running"] .display { color: var(--ink-running); }
+  .slot[data-slot-state="done"]    .display { color: var(--ink-running); }
 
-  /* 默认全程红色，和实物 LED 牌一致 */
-  #stage[data-state="LOCKED"]  #display,
-  #stage[data-state="STOPPED"] #display { color: var(--ink-running); }
-
-  /* 带 ?green 参数访问时，停表变绿，便于一眼看出表已经停了 */
-  :root[data-green-stop] #stage[data-state="LOCKED"]  #display,
-  :root[data-green-stop] #stage[data-state="STOPPED"] #display { color: var(--ink-done); }
+  /* ?green 只对普通秒表生效。PK 模式下绿色会被读成「这一方获胜」，故排除 */
+  :root[data-green-stop]:not([data-pk]) .slot[data-slot-state="done"] .display {
+    color: var(--ink-done);
+  }
 </style>
 </head>
 <body>
-  <div id="stage" data-state="IDLE">
-    <svg id="display" preserveAspectRatio="xMidYMid meet" aria-label="计时显示">
-      <text id="ghost" x="0" y="0" text-anchor="end">88.88</text>
-      <text id="value" x="0" y="0" text-anchor="end">0.00</text>
-    </svg>
+  <div id="stage">
+    <div class="slot" data-slot-state="empty">
+      <svg class="display" preserveAspectRatio="xMidYMid meet" aria-label="选手一计时">
+        <text class="ghost" x="0" y="0" text-anchor="end">88.88</text>
+        <text class="value" x="0" y="0" text-anchor="end">0.00</text>
+      </svg>
+    </div>
+    <div class="slot" data-slot-state="empty">
+      <svg class="display" preserveAspectRatio="xMidYMid meet" aria-label="选手二计时">
+        <text class="ghost" x="0" y="0" text-anchor="end">88.88</text>
+        <text class="value" x="0" y="0" text-anchor="end">0.00</text>
+      </svg>
+    </div>
   </div>
   <script type="module" src="./app.js"></script>
 </body>
