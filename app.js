@@ -3,8 +3,14 @@ import {
   SlotState, pkSlotStates, slotStateOf,
 } from './timer-core.js';
 import { createDisplay, spineDigitsWidth } from './display.js';
+import { createBeeper } from './beep.js';
 
 const LOCK_MS = 500; // 停表后的封锁时长，防手掌反弹与多指造成的二次触发
+
+// 每拍一下都响一声「滴——」，开始、停表、清零、锁定期内被吞掉的拍都响：
+// 响声表示设备收到了这一拍，这一拍做了什么仍以屏幕为准。
+// 总在 handleSlap 之后调用——时间戳已经从事件里取好，发声不影响计时。
+const beeper = createBeeper();
 
 const params = new URLSearchParams(location.search);
 const isPk = params.has('pk');
@@ -155,6 +161,7 @@ function onPointerDown(e) {
   activePointerId = e.pointerId;
   e.preventDefault();
   handleSlap(e.timeStamp);
+  beeper.beep();
 }
 
 function onPointerEnd(e) {
@@ -176,6 +183,7 @@ window.addEventListener('keydown', (e) => {
   if (e.key !== 'Enter' || e.repeat) return;
   e.preventDefault();
   handleSlap(e.timeStamp);
+  beeper.beep();
 });
 
 // 兜底：阻止双击缩放与长按菜单

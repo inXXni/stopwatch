@@ -26,6 +26,13 @@ test('manifest: 每份都显式写了 start_url', () => {
   }
 });
 
+// 解析 sw.js 里的缓存清单
+function swAssets() {
+  const block = read('sw.js').match(/const ASSETS = \[([\s\S]*?)\];/);
+  assert.ok(block, '没能从 sw.js 解析出 ASSETS');
+  return block[1].split(',').map((s) => s.trim().replace(/^['"]|['"]$/g, '')).filter(Boolean);
+}
+
 // 把 index.html 头部那段选 manifest 的内联脚本取出来，在隔离的上下文里配上假的
 // location 与 document 执行，直接验证页面实际使用的规则，而不是在测试里再抄一遍
 function runHeadScript(search) {
@@ -78,9 +85,7 @@ test('manifest: 安装后全屏且固定横屏，其余字段四份一致', () =
 
 test('Service Worker: 缓存清单包含全部 manifest，且每个文件都存在', () => {
   // cache.addAll 是原子的，任何一项取不到，整个 Service Worker 就装不上，离线彻底失效
-  const block = read('sw.js').match(/const ASSETS = \[([\s\S]*?)\];/);
-  assert.ok(block, '没能从 sw.js 解析出 ASSETS');
-  const assets = block[1].split(',').map((s) => s.trim().replace(/^['"]|['"]$/g, '')).filter(Boolean);
+  const assets = swAssets();
   const manifestAssets = assets.filter((a) => /manifest.*\.json$/.test(a)).sort();
   assert.deepEqual(manifestAssets, manifests.map((m) => './' + m.file).sort(),
     '缓存清单里的 manifest 与生成脚本不一致，删掉的变体要从 sw.js 里一起去掉');
@@ -96,4 +101,19 @@ test('Service Worker: 缓存清单包含全部 manifest，且每个文件都存�
 test('Service Worker: 查缓存时忽略地址参数', () => {
   // 不忽略的话，?pk、?green 在缓存里查不到，断网时打不开
   assert.match(read('sw.js'), /caches\.match\([^)]*ignoreSearch:\s*true/);
+});
+
+test('Service Worker: 页面用到的每个 JS 模块都在缓存清单里', () => {
+  // 漏掉一个，断网时那个模块加载失败，整个页面的脚本都跑不起来
+  const assets = swAssets();
+  const seen = new Set();
+  const visit = (file) => {
+    if (seen.has(file)) return;
+    seen.add(file);
+    for (const [, dep] of read(file).matchAll(/from '\.\/([\w-]+\.js)'/g)) visit(dep);
+  };
+  visit(read('index.html').match(/<script type="module" src="\.\/([\w-]+\.js)">/)[1]);
+  for (const file of seen) {
+    assert.ok(assets.includes('./' + file), `缓存清单漏了 ${file}`);
+  }
 });
