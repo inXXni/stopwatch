@@ -44,17 +44,19 @@ iOS Safari：分享 →「添加到主屏幕」），再从桌面图标启动才
 
 ### 安装与参数
 
-URL 参数（`?pk`、`?green`）的每种组合都有一份独立的 manifest，各自写明 `start_url`：
+普通模式的两种参数组合与 PK 模式各有一份独立的 manifest，各自写明 `start_url`：
 
 | 文件 | 启动页 | 图标名 |
 |---|---|---|
 | `manifest.json` | `./` | 秒表 |
 | `manifest-green.json` | `./?green` | 秒表 绿 |
 | `manifest-pk.json` | `./?pk` | PK 秒表 |
-| `manifest-pk-green.json` | `./?pk&green` | PK 秒表 绿 |
+
+PK 模式忽略 `?green`（红蓝是阵营色，停表变绿会把阵营抹掉），`?pk&green` 用的也是
+`manifest-pk.json`。
 
 `index.html` 头部的一段内联脚本按地址参数选用对应文件，并同步 iOS 的
-`apple-mobile-web-app-title`。四份文件由 `npm run manifests` 生成，不手改。
+`apple-mobile-web-app-title`。三份文件由 `npm run manifests` 生成，不手改。
 
 为什么这样做：
 
