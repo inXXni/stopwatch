@@ -7,6 +7,7 @@
   "scripts": {
     "test": "node --test",
     "icons": "node tools/make-icons.mjs",
-    "serve": "python3 -m http.server 8080"
+    "serve": "python3 -m http.server 8080",
+    "manifests": "node tools/make-manifests.mjs"
   }
 }

@@ -30,7 +30,7 @@ timer/
 ├── index.html      # 结构与样式
 ├── timer-core.js   # 纯逻辑：时间格式化、状态机、幽灵层文本（可单独测试）
 ├── app.js          # DOM 绑定、渲染循环、Wake Lock
-├── manifest.json   # PWA 清单：名称、图标、全屏显示
+├── manifest*.json  # PWA 清单，按参数组合各一份，由 tools/make-manifests.mjs 生成
 ├── sw.js           # Service Worker，缓存上述文件以支持离线
 └── fonts/          # DSEG7 七段字体与其 SIL OFL 许可证
 ```
@@ -38,7 +38,34 @@ timer/
 纯逻辑之所以单独成文件，是为了不依赖 DOM、能用 `node --test` 直接测试。
 
 部署方式为把目录发布到任意静态托管（GitHub Pages / Cloudflare Pages / Artifact 链接均可）。
-用户在手机浏览器打开后通过「添加到主屏幕」获得桌面图标与全屏体验。
+用户在手机浏览器打开后，需要**安装**成桌面应用（Android Chrome：菜单 →「添加到主屏幕」→「安装」；
+iOS Safari：分享 →「添加到主屏幕」），再从桌面图标启动才是全屏。在浏览器标签页里打开，
+或选「创建快捷方式」，都只是普通标签页，地址栏和工具栏会一直显示。
+
+### 安装与参数
+
+URL 参数（`?pk`、`?green`）的每种组合都有一份独立的 manifest，各自写明 `start_url`：
+
+| 文件 | 启动页 | 图标名 |
+|---|---|---|
+| `manifest.json` | `./` | 秒表 |
+| `manifest-green.json` | `./?green` | 秒表 绿 |
+| `manifest-pk.json` | `./?pk` | PK 秒表 |
+| `manifest-pk-green.json` | `./?pk&green` | PK 秒表 绿 |
+
+`index.html` 头部的一段内联脚本按地址参数选用对应文件，并同步 iOS 的
+`apple-mobile-web-app-title`。四份文件由 `npm run manifests` 生成，不手改。
+
+为什么这样做：
+
+- 安装后的图标总是打开 manifest 里的 `start_url`。只有一份 manifest 时，
+  从 `?pk` 页面装出来的图标打开的是普通模式，参数会丢；`id` 默认取 `start_url`，
+  几种组合还会被当成同一个应用，只能装一个。
+- 不能靠省略 `start_url` 让它跟随安装时的地址：Chrome 要求显式写出 `start_url`
+  才允许安装，省略会报 `start-url-not-valid`，「安装」选项直接消失。
+
+Service Worker 查缓存时用 `ignoreSearch: true`：几种参数打开的都是同一个 `index.html`，
+缓存里存的是不带参数的地址，不忽略参数的话带参数的地址断网时打不开。
 
 选择 PWA 而非普通网页的理由：需要桌面图标、全屏无浏览器 UI、以及离线可用——
 比赛现场网络不可靠，离线能力是硬需求。

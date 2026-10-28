@@ -9,6 +9,21 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="秒表">
 <link rel="manifest" href="./manifest.json">
+<script>
+  // 按地址参数选用对应的 manifest：每种组合一份，各自写明 start_url，
+  // 安装到桌面的图标才会打开对应模式，名字也互不相同。四份文件由 npm run manifests 生成，
+  // 文件名规则与名字必须和 tools/make-manifests.mjs 保持一致。
+  (() => {
+    const q = new URLSearchParams(location.search);
+    const pk = q.has('pk');
+    const green = q.has('green');
+    if (!pk && !green) return;
+    document.querySelector('link[rel="manifest"]').href =
+      './manifest' + (pk ? '-pk' : '') + (green ? '-green' : '') + '.json';
+    document.querySelector('meta[name="apple-mobile-web-app-title"]').content =
+      (pk ? 'PK 秒表' : '秒表') + (green ? ' 绿' : '');
+  })();
+</script>
 <!-- iOS 不读 manifest 里的 icons，必须单独给 apple-touch-icon，否则主屏图标会变成网页截图 -->
 <link rel="apple-touch-icon" href="./icon-192.png">
 <link rel="icon" type="image/png" href="./icon-192.png">
