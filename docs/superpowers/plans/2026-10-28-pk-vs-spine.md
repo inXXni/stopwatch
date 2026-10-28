@@ -690,3 +690,12 @@ Expected: 列出一台 `device`。没有的话请用户插线并允许 USB 调�
 
 用户上次的选择是「合并回 main、删掉功能分支、先不推送」。推送到 GitHub 等于发布线上版本，
 必须等用户明确同意后才推送。
+
+## 执行中的调整
+
+1. **外观检查要绕过 Service Worker**：Task 0 跑 baseline 时 headless Chrome 装上了 v12 的
+   Service Worker，改完代码后它仍按 cache-first 返回旧页面。`spine-check.mjs` 的 `open()`
+   在导航前加了 `Network.enable`、`Network.setBypassServiceWorker({ bypass: true })` 与
+   `Network.setCacheDisabled({ cacheDisabled: true })`。
+2. **实测结果**：68 项外观检查全部通过。手机横屏 800×360 数字宽 440.6 → 466.9，
+   1920×1080 为 1322.0 → 1400.6；竖屏与 iPad 横屏的数字宽、VS 位置与改前完全相同。
