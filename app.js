@@ -9,9 +9,10 @@ const LOCK_MS = 500; // 停表后的封锁时长，防手掌反弹与多指造�
 const params = new URLSearchParams(location.search);
 const isPk = params.has('pk');
 
-// ?green：停表变绿，便于一眼看出表已经停了。两种模式都吃这个参数。
+// ?green：停表变绿，便于一眼看出表已经停了。只对普通模式生效——
+// PK 模式下红蓝是阵营色，停表变绿会把阵营抹掉。
 // 在 iPhone 上用带参数的地址「添加到主屏幕」，那个图标就固定带该设置。
-if (params.has('green')) document.documentElement.dataset.greenStop = '';
+if (params.has('green') && !isPk) document.documentElement.dataset.greenStop = '';
 if (isPk) document.documentElement.dataset.pk = '';
 
 const stage = document.getElementById('stage');

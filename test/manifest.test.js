@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import { readFileSync, existsSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { runInNewContext } from 'node:vm';
 import { VARIANTS } from '../tools/make-manifests.mjs';
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
@@ -25,16 +26,38 @@ test('manifest: 每份都显式写了 start_url', () => {
   }
 });
 
-test('manifest: 文件名与 start_url 的参数一一对应', () => {
-  // index.html 按 manifest[-pk][-green].json 的规则选文件，start_url 必须带着同样的参数
+// 把 index.html 头部那段选 manifest 的内联脚本取出来，在隔离的上下文里配上假的
+// location 与 document 执行，直接验证页面实际使用的规则，而不是在测试里再抄一遍
+function runHeadScript(search) {
+  const src = read('index.html').match(/<script>([\s\S]*?)<\/script>/)[1];
+  const link = { href: './manifest.json' };
+  const meta = { content: '秒表' };
+  const document = { querySelector: (sel) => (sel.startsWith('link') ? link : meta) };
+  runInNewContext(src, { location: { search }, document, URLSearchParams });
+  return { manifest: link.href, title: meta.content };
+}
+
+test('index.html: 按地址参数选 manifest，PK 模式忽略 green', () => {
+  assert.deepEqual(runHeadScript(''), { manifest: './manifest.json', title: '秒表' });
+  assert.deepEqual(runHeadScript('?green'), { manifest: './manifest-green.json', title: '秒表 绿' });
+  assert.deepEqual(runHeadScript('?pk'), { manifest: './manifest-pk.json', title: 'PK 秒表' });
+  assert.deepEqual(runHeadScript('?pk&green'), { manifest: './manifest-pk.json', title: 'PK 秒表' });
+});
+
+test('manifest: 从每份的 start_url 打开，页面选回的正是这一份，iPhone 名字与图标名一致', () => {
   for (const { file, json } of manifests) {
-    const q = new URLSearchParams(json.start_url.split('?')[1] || '');
-    const expected = 'manifest' + (q.has('pk') ? '-pk' : '') + (q.has('green') ? '-green' : '') + '.json';
-    assert.equal(file, expected);
+    const search = json.start_url.includes('?') ? '?' + json.start_url.split('?')[1] : '';
+    const { manifest, title } = runHeadScript(search);
+    assert.equal(manifest, './' + file, `${json.start_url} 选到了 ${manifest}`);
+    assert.equal(title, json.short_name);
   }
 });
 
-test('manifest: 四种组合的 start_url 与名字各不相同，可以在桌面上并存', () => {
+test('manifest: PK 模式不再有停表变绿的变体', () => {
+  assert.equal(existsSync(join(ROOT, 'manifest-pk-green.json')), false);
+});
+
+test('manifest: 各组合的 start_url 与名字各不相同，可以在桌面上并存', () => {
   const uniq = (key) => new Set(manifests.map((m) => m.json[key])).size;
   assert.equal(uniq('start_url'), manifests.length);
   assert.equal(uniq('short_name'), manifests.length);
@@ -58,6 +81,9 @@ test('Service Worker: 缓存清单包含全部 manifest，且每个文件都存�
   const block = read('sw.js').match(/const ASSETS = \[([\s\S]*?)\];/);
   assert.ok(block, '没能从 sw.js 解析出 ASSETS');
   const assets = block[1].split(',').map((s) => s.trim().replace(/^['"]|['"]$/g, '')).filter(Boolean);
+  const manifestAssets = assets.filter((a) => /manifest.*\.json$/.test(a)).sort();
+  assert.deepEqual(manifestAssets, manifests.map((m) => './' + m.file).sort(),
+    '缓存清单里的 manifest 与生成脚本不一致，删掉的变体要从 sw.js 里一起去掉');
   for (const { file } of manifests) {
     assert.ok(assets.includes('./' + file), `缓存清单漏了 ${file}`);
   }

@@ -1,7 +1,7 @@
-// 生成四份 manifest：普通 / 停表变绿 / PK / PK + 停表变绿。
+// 生成三份 manifest：普通 / 停表变绿 / PK。PK 模式不区分停表变绿（红蓝是阵营色）。
 // 用法：npm run manifests
 //
-// 为什么要四份：安装到桌面的图标总是打开 manifest 里写的 start_url，
+// 为什么要按参数各一份：安装到桌面的图标总是打开 manifest 里写的 start_url，
 // 只有一份的话，从 ?pk 页面装出来的图标打开的也是普通模式，参数会丢；
 // 而且 id 默认取 start_url，几种参数会被当成同一个应用，只能装一个。
 //
@@ -28,7 +28,7 @@ const BASE = {
   ],
 };
 
-// 文件名规则与 index.html 里选用 manifest 的那段脚本一致：manifest[-pk][-green].json
+// 文件名规则与 index.html 里选用 manifest 的那段脚本一致：manifest[-green].json，PK 一律 manifest-pk.json
 // short_name 显示在桌面图标下面，也与 index.html 里给 iPhone 设的名字一致。
 export const VARIANTS = [
   {
@@ -51,13 +51,6 @@ export const VARIANTS = [
     name: 'PK 秒表',
     short_name: 'PK 秒表',
     description: '双人 PK 模式：上下两格依次计时，并排比对成绩',
-  },
-  {
-    file: 'manifest-pk-green.json',
-    start_url: './?pk&green',
-    name: 'PK 秒表（停表变绿）',
-    short_name: 'PK 秒表 绿',
-    description: '双人 PK 模式：上下两格依次计时，各自停表后数字变绿',
   },
 ];
 

@@ -10,7 +10,6 @@ const ASSETS = [
   './manifest.json',
   './manifest-green.json',
   './manifest-pk.json',
-  './manifest-pk-green.json',
   './icon-192.png',
   './icon-512.png',
   './fonts/DSEG7Classic-Bold.woff2',

@@ -11,17 +11,18 @@
 <link rel="manifest" href="./manifest.json">
 <script>
   // 按地址参数选用对应的 manifest：每种组合一份，各自写明 start_url，
-  // 安装到桌面的图标才会打开对应模式，名字也互不相同。四份文件由 npm run manifests 生成，
+  // 安装到桌面的图标才会打开对应模式，名字也互不相同。文件由 npm run manifests 生成，
   // 文件名规则与名字必须和 tools/make-manifests.mjs 保持一致。
+  // PK 模式忽略 green：红蓝是阵营色，停表变绿会把阵营抹掉，?pk&green 按 ?pk 处理。
   (() => {
     const q = new URLSearchParams(location.search);
     const pk = q.has('pk');
     const green = q.has('green');
     if (!pk && !green) return;
     document.querySelector('link[rel="manifest"]').href =
-      './manifest' + (pk ? '-pk' : '') + (green ? '-green' : '') + '.json';
+      pk ? './manifest-pk.json' : './manifest-green.json';
     document.querySelector('meta[name="apple-mobile-web-app-title"]').content =
-      (pk ? 'PK 秒表' : '秒表') + (green ? ' 绿' : '');
+      pk ? 'PK 秒表' : '秒表 绿';
   })();
 </script>
 <!-- iOS 不读 manifest 里的 icons，必须单独给 apple-touch-icon，否则主屏图标会变成网页截图 -->

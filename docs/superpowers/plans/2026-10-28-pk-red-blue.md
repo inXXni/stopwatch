@@ -363,17 +363,19 @@ git commit -m "feat: PK 模式每格新增「轮到这一格」状态"
 
 在 `test/manifest.test.js` 里：
 
+0. 在 import 区加 `import { runInNewContext } from 'node:vm';`（放在 `node:url` 那行之后）。
+
 1. 把 `test('manifest: 文件名与 start_url 的参数一一对应', ...)` 整段替换为：
 
 ```js
-// 把 index.html 头部那段选 manifest 的内联脚本取出来，在假的 location 与 document 上执行，
-// 直接验证页面实际使用的规则，而不是在测试里再抄一遍
+// 把 index.html 头部那段选 manifest 的内联脚本取出来，在隔离的上下文里配上假的
+// location 与 document 执行，直接验证页面实际使用的规则，而不是在测试里再抄一遍
 function runHeadScript(search) {
   const src = read('index.html').match(/<script>([\s\S]*?)<\/script>/)[1];
   const link = { href: './manifest.json' };
   const meta = { content: '秒表' };
   const document = { querySelector: (sel) => (sel.startsWith('link') ? link : meta) };
-  new Function('location', 'document', src)({ search }, document);
+  runInNewContext(src, { location: { search }, document, URLSearchParams });
   return { manifest: link.href, title: meta.content };
 }
 
