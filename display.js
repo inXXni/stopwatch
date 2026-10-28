@@ -5,8 +5,10 @@ import { formatTime, ghostOf } from './timer-core.js';
  *
  * 两层文字右对齐叠放：幽灵层固定是全 8（七段全亮）显示为暗色，读数层盖在上面。
  * 读数不足两位秒时左边自然露出一个全暗的 8，正是 LED 牌没通电那一位的样子。
+ *
+ * onFit：每次重新设定 viewBox 之后调用，数字的渲染尺寸此时可能变了。
  */
-export function createDisplay(svg) {
+export function createDisplay(svg, { onFit } = {}) {
   const ghost = svg.querySelector('.ghost');
   const value = svg.querySelector('.value');
 
@@ -29,6 +31,7 @@ export function createDisplay(svg) {
       'viewBox',
       `${box.x - pad} ${box.y - pad} ${box.width + pad * 2} ${box.height + pad * 2}`
     );
+    onFit?.();
   }
 
   function render(text) {

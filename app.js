@@ -17,7 +17,24 @@ if (isPk) document.documentElement.dataset.pk = '';
 
 const stage = document.getElementById('stage');
 const slots = [...stage.querySelectorAll('.slot')];
-const displays = slots.map((slot) => createDisplay(slot.querySelector('.display')));
+
+// PK 模式的色条和数字一样高。数字的实际高度由格子宽高与 viewBox 共同决定：
+// 横屏时受格子高度限制，竖屏时受宽度限制会变矮，色条若按格子高度算就会比数字长。
+// 所以直接量幽灵层的渲染高度写给色条：viewBox 变了（字体加载完、超过 99 秒加宽）
+// 或格子尺寸变了（转屏、窗口缩放）都重新量一次。
+function syncStripe(slot) {
+  if (!isPk) return;
+  const h = slot.querySelector('.ghost').getBoundingClientRect().height;
+  if (h) slot.querySelector('.stripe').style.height = `${h}px`;
+}
+
+const displays = slots.map((slot) =>
+  createDisplay(slot.querySelector('.display'), { onFit: () => syncStripe(slot) }));
+
+if (isPk && 'ResizeObserver' in window) {
+  const ro = new ResizeObserver((entries) => entries.forEach((e) => syncStripe(e.target)));
+  slots.forEach((slot) => ro.observe(slot));
+}
 
 function paintSlots(states) {
   states.forEach((s, i) => { slots[i].dataset.slotState = s; });

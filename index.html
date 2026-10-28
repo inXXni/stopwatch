@@ -147,11 +147,12 @@
     background: var(--rule);
   }
 
-  /* 左侧色条：轮到谁谁闪，计时中与已定格常亮，还没轮到的变暗 */
+  /* 左侧色条：从轮到这一格起一直闪，停表才常亮，还没轮到的变暗。
+     高度由 app.js 按数字的实际渲染高度设置，量到之前先不显示 */
   .stripe {
     flex: none;
     width: 1.5vmin;
-    height: 80%;
+    height: 0;
     margin-right: 2.5vmin;
     border-radius: 0.75vmin;
     background: currentColor;
@@ -159,7 +160,8 @@
 
   .slot[data-slot-state="empty"] .stripe { opacity: 0.2; }
 
-  .slot[data-slot-state="next"] .stripe {
+  /* 轮到与计时中用同一条 animation，切换时浏览器不会让动画重新起跳 */
+  .slot:is([data-slot-state="next"], [data-slot-state="running"]) .stripe {
     animation: stripe-pulse 0.8s ease-in-out infinite alternate;
   }
 

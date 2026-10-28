@@ -953,3 +953,20 @@ Expected：第一行是 `const CACHE = 'slap-stopwatch-v11';`；第二行是 `40
 ```bash
 git branch -d feat/pk-red-blue
 ```
+
+---
+
+## 执行中的调整
+
+Task 6 真机验证时用户提出两处修改，先做了可交互演示，确认后在同一分支上改：
+
+1. **计时中色条也闪**：原计划只有 `next` 闪、`running` 常亮。改为 `next` 与 `running`
+   共用同一条 `animation`，从轮到起一直闪到停表；共用同一条规则，开始计时时动画不会重新起跳。
+2. **色条高度跟着数字走**：原计划 `.stripe` 为 `height: 80%`，竖屏时数字受宽度限制变矮，
+   色条明显比数字长。改为 CSS 初值 `height: 0`，由 `app.js` 读取幽灵层的渲染高度写给色条；
+   `display.js` 的 `createDisplay` 增加 `onFit` 回调，在每次重设 viewBox 后调用，
+   另用 `ResizeObserver` 盯格子尺寸。色条位置不变（屏幕最左边），对比过「紧贴数字」方案后弃用。
+
+外观检查脚本相应加了：手机竖屏 360×708 视口、`running` 时色条应为「闪烁」、
+色条高度与幽灵层渲染高度相差不超过 1px、`next` 到 `running` 动画起点不变、
+同一页面横屏转竖屏后色条跟着变矮。
