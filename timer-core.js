@@ -107,11 +107,12 @@ export function nextPkState(state, event) {
 }
 
 /**
- * 每一格的视觉状态。两种模式都归一到这三个值，CSS 只认它们，
- * 着色规则因此只需写一套。
+ * 每一格的视觉状态。两种模式都归一到这几个值，CSS 只认它们，
+ * 着色规则因此只需写一套。NEXT 只在 PK 模式出现，用来让色条提示轮到谁。
  */
 export const SlotState = {
-  EMPTY: 'empty',     // 尚未轮到，只显示暗色幽灵层
+  EMPTY: 'empty',     // 尚未轮到，显示 00.00
+  NEXT: 'next',       // 轮到这一格，下一拍就从这里开始计时
   RUNNING: 'running', // 计时中
   DONE: 'done',       // 已定格
 };
@@ -123,14 +124,20 @@ export function slotStateOf(state) {
   return SlotState.EMPTY;
 }
 
-/** PK 模式：返回 [上格, 下格]。 */
+/**
+ * PK 模式：返回 [上格, 下格]。
+ * 锁定期内拍击无效，所以 LOCK_P1 时下格还是 EMPTY，锁定结束进入 WAIT_P2 才轮到它。
+ */
 export function pkSlotStates(state) {
   switch (state) {
+    case PkState.WAIT_P1:
+      return [SlotState.NEXT, SlotState.EMPTY];
     case PkState.RUN_P1:
       return [SlotState.RUNNING, SlotState.EMPTY];
     case PkState.LOCK_P1:
-    case PkState.WAIT_P2:
       return [SlotState.DONE, SlotState.EMPTY];
+    case PkState.WAIT_P2:
+      return [SlotState.DONE, SlotState.NEXT];
     case PkState.RUN_P2:
       return [SlotState.DONE, SlotState.RUNNING];
     case PkState.LOCK_P2:

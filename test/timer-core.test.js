@@ -183,17 +183,27 @@ test('槽位映射: 普通模式三种状态', () => {
   assert.equal(slotStateOf(State.STOPPED), SlotState.DONE);
 });
 
-test('槽位映射: PK 空场两格皆空', () => {
-  assert.deepEqual(pkSlotStates(PkState.WAIT_P1), [SlotState.EMPTY, SlotState.EMPTY]);
+test('槽位映射: 普通模式不会出现「轮到这一格」', () => {
+  for (const s of Object.values(State)) {
+    assert.notEqual(slotStateOf(s), SlotState.NEXT, `${s} 映射成了 next`);
+  }
+});
+
+test('槽位映射: PK 空场时轮到上格，下格空', () => {
+  assert.deepEqual(pkSlotStates(PkState.WAIT_P1), [SlotState.NEXT, SlotState.EMPTY]);
 });
 
 test('槽位映射: 上格计时中，下格仍空', () => {
   assert.deepEqual(pkSlotStates(PkState.RUN_P1), [SlotState.RUNNING, SlotState.EMPTY]);
 });
 
-test('槽位映射: 上格定格后下格仍空', () => {
+test('槽位映射: 上格锁定期内下格仍空，不提前提示下格', () => {
+  // 锁定期内拍击无效，这时提示下格「该你了」会误导
   assert.deepEqual(pkSlotStates(PkState.LOCK_P1), [SlotState.DONE, SlotState.EMPTY]);
-  assert.deepEqual(pkSlotStates(PkState.WAIT_P2), [SlotState.DONE, SlotState.EMPTY]);
+});
+
+test('槽位映射: 上格锁定期满后轮到下格', () => {
+  assert.deepEqual(pkSlotStates(PkState.WAIT_P2), [SlotState.DONE, SlotState.NEXT]);
 });
 
 test('槽位映射: 下格计时期间上格保持定格', () => {
