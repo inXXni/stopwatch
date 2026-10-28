@@ -73,6 +73,8 @@ function handleSlapSingle(timeStamp) {
       state = nextState(state, Event.UNLOCK);
       paintSlots([slotStateOf(state), SlotState.EMPTY]);
     }, LOCK_MS);
+  } else if (next === State.IDLE) {
+    displays[0].render(formatTime(0)); // 清零，不开跑
   }
 
   paintSlots([slotStateOf(state), SlotState.EMPTY]);
