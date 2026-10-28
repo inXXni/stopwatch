@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { formatTime, State, Event, nextState, ghostOf } from '../timer-core.js';
+import { formatTime, State, Event, nextState, ghostOf, PkState, nextPkState } from '../timer-core.js';
 
 test('formatTime: 零值显示 0.00', () => {
   assert.equal(formatTime(0), '0.00');
@@ -96,4 +96,63 @@ test('幽灵层: 长度不短于读数，否则右对齐叠放时会露出来', 
   for (const text of ['0.00', '9.87', '12.34', '60.00', '123.45']) {
     assert.ok(ghostOf(text).length >= text.length, `"${text}" 的幽灵层太短`);
   }
+});
+
+test('PK 状态机: 空场拍击，上格开始', () => {
+  assert.equal(nextPkState(PkState.WAIT_P1, Event.SLAP), PkState.RUN_P1);
+});
+
+test('PK 状态机: 上格计时中拍击进入锁定', () => {
+  assert.equal(nextPkState(PkState.RUN_P1, Event.SLAP), PkState.LOCK_P1);
+});
+
+test('PK 状态机: 上格锁定期内拍击被忽略', () => {
+  assert.equal(nextPkState(PkState.LOCK_P1, Event.SLAP), PkState.LOCK_P1);
+});
+
+test('PK 状态机: 上格锁定期满后等待下格', () => {
+  assert.equal(nextPkState(PkState.LOCK_P1, Event.UNLOCK), PkState.WAIT_P2);
+});
+
+test('PK 状态机: 等待下格时拍击开始的是下格，不是重开上格', () => {
+  const next = nextPkState(PkState.WAIT_P2, Event.SLAP);
+  assert.equal(next, PkState.RUN_P2);
+  assert.notEqual(next, PkState.RUN_P1);
+});
+
+test('PK 状态机: 下格计时中拍击进入锁定', () => {
+  assert.equal(nextPkState(PkState.RUN_P2, Event.SLAP), PkState.LOCK_P2);
+});
+
+test('PK 状态机: 下格锁定期内拍击被忽略', () => {
+  assert.equal(nextPkState(PkState.LOCK_P2, Event.SLAP), PkState.LOCK_P2);
+});
+
+test('PK 状态机: 下格锁定期满后进入结果态', () => {
+  assert.equal(nextPkState(PkState.LOCK_P2, Event.UNLOCK), PkState.RESULT);
+});
+
+test('PK 状态机: 结果态拍击只清场，不直接开跑', () => {
+  const next = nextPkState(PkState.RESULT, Event.SLAP);
+  assert.equal(next, PkState.WAIT_P1);
+  assert.notEqual(next, PkState.RUN_P1);
+});
+
+test('PK 状态机: 清场后再拍一下才开始新一轮', () => {
+  let s = PkState.RESULT;
+  s = nextPkState(s, Event.SLAP);
+  assert.equal(s, PkState.WAIT_P1);
+  s = nextPkState(s, Event.SLAP);
+  assert.equal(s, PkState.RUN_P1);
+});
+
+test('PK 状态机: 非锁定状态收到 UNLOCK 时保持原状态', () => {
+  for (const s of [PkState.WAIT_P1, PkState.RUN_P1, PkState.WAIT_P2, PkState.RUN_P2, PkState.RESULT]) {
+    assert.equal(nextPkState(s, Event.UNLOCK), s);
+  }
+});
+
+test('PK 状态机: 未知事件与未知状态原样返回', () => {
+  assert.equal(nextPkState(PkState.RUN_P1, 'BOGUS'), PkState.RUN_P1);
+  assert.equal(nextPkState('BOGUS', Event.SLAP), 'BOGUS');
 });

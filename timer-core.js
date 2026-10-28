@@ -57,3 +57,44 @@ export function ghostOf(text) {
   const [intPart, fracPart] = String(text).split('.');
   return '8'.repeat(Math.max(2, intPart.length)) + '.' + '8'.repeat(fracPart.length);
 }
+
+/**
+ * PK 模式的状态机。不复用普通模式的四状态机：两者在「停表后再拍一下」
+ * 这个转移上语义不同——普通模式是清零重开，PK 模式是换人或清场。
+ *
+ * WAIT_P1 → RUN_P1 → LOCK_P1 → WAIT_P2 → RUN_P2 → LOCK_P2 → RESULT → WAIT_P1
+ *
+ * 两个 LOCK 状态各自在 500ms 后由 UNLOCK 事件推进，用途与普通模式一致：
+ * 挡掉手掌反弹与多指造成的二次触发。
+ */
+export const PkState = {
+  WAIT_P1: 'WAIT_P1', // 两格皆空，等上格开始
+  RUN_P1: 'RUN_P1',   // 上格计时中
+  LOCK_P1: 'LOCK_P1', // 上格刚停，吞掉一切输入
+  WAIT_P2: 'WAIT_P2', // 上格定格，等下格开始
+  RUN_P2: 'RUN_P2',   // 下格计时中
+  LOCK_P2: 'LOCK_P2', // 下格刚停，吞掉一切输入
+  RESULT: 'RESULT',   // 两格皆定格，等清场
+};
+
+export function nextPkState(state, event) {
+  if (event === Event.SLAP) {
+    switch (state) {
+      case PkState.WAIT_P1: return PkState.RUN_P1;
+      case PkState.RUN_P1: return PkState.LOCK_P1;
+      case PkState.LOCK_P1: return PkState.LOCK_P1;
+      case PkState.WAIT_P2: return PkState.RUN_P2;
+      case PkState.RUN_P2: return PkState.LOCK_P2;
+      case PkState.LOCK_P2: return PkState.LOCK_P2;
+      // 只清场，不开跑：现场刚宣布完胜负，一拍就重来会把没记录的成绩抹掉
+      case PkState.RESULT: return PkState.WAIT_P1;
+      default: return state;
+    }
+  }
+  if (event === Event.UNLOCK) {
+    if (state === PkState.LOCK_P1) return PkState.WAIT_P2;
+    if (state === PkState.LOCK_P2) return PkState.RESULT;
+    return state;
+  }
+  return state;
+}
