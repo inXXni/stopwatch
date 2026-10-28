@@ -15,10 +15,10 @@ export function formatTime(ms) {
 }
 
 export const State = {
-  IDLE: 'IDLE',       // 未开始，显示 0.00
+  IDLE: 'IDLE',       // 未开始，显示 00.00
   RUNNING: 'RUNNING', // 计时中
   LOCKED: 'LOCKED',   // 刚停表，吞掉一切输入，防手掌反弹和多指造成的二次触发
-  STOPPED: 'STOPPED', // 显示成绩，等待下一轮
+  STOPPED: 'STOPPED', // 显示成绩，等待清零
 };
 
 export const Event = {
@@ -28,17 +28,21 @@ export const Event = {
 
 /**
  * 纯函数形式的状态转移。不做任何副作用，时间戳记录由调用方负责。
+ *
+ * 三拍一轮：IDLE → RUNNING → LOCKED → STOPPED → IDLE。
+ * 停表后那一拍只清零、不开跑，成绩出来后手快多拍一下不会直接把成绩抹掉。
  */
 export function nextState(state, event) {
   if (event === Event.SLAP) {
     switch (state) {
       case State.IDLE:
-      case State.STOPPED:
         return State.RUNNING;
       case State.RUNNING:
         return State.LOCKED;
       case State.LOCKED:
         return State.LOCKED;
+      case State.STOPPED:
+        return State.IDLE;
       default:
         return state;
     }
@@ -53,8 +57,8 @@ export function nextState(state, event) {
  * 生成幽灵层的文本：每一位都换成 8（七段全亮），整数部分至少两位。
  *
  * 幽灵层以暗色垫在读数下面，模拟 LED 显示屏上没通电的段——这是 LED 牌最有
- * 辨识度的细节。两层右对齐叠放，所以读数不足两位秒时，左边会自然空出一个
- * 全暗的 8，布局也因此始终固定，数字不会因为位数变化而整体缩放跳动。
+ * 辨识度的细节。两层右对齐叠放；读数已补足两位秒，所以两层通常等长，
+ * 超过 99 秒时幽灵层跟着加宽，布局始终由幽灵层决定，数字不会整体缩放跳动。
  */
 export function ghostOf(text) {
   const [intPart, fracPart] = String(text).split('.');
@@ -63,7 +67,7 @@ export function ghostOf(text) {
 
 /**
  * PK 模式的状态机。不复用普通模式的四状态机：两者在「停表后再拍一下」
- * 这个转移上语义不同——普通模式是清零重开，PK 模式是换人或清场。
+ * 这个转移上语义不同——普通模式总是清零，PK 模式第一次停表后是换下一个人。
  *
  * WAIT_P1 → RUN_P1 → LOCK_P1 → WAIT_P2 → RUN_P2 → LOCK_P2 → RESULT → WAIT_P1
  *

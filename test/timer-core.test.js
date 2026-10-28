@@ -63,8 +63,24 @@ test('状态机: 锁定期结束后进入已停止', () => {
   assert.equal(nextState(State.LOCKED, Event.UNLOCK), State.STOPPED);
 });
 
-test('状态机: 已停止时拍击开始新一轮', () => {
-  assert.equal(nextState(State.STOPPED, Event.SLAP), State.RUNNING);
+test('状态机: 已停止时拍击只清零，不直接开跑', () => {
+  const next = nextState(State.STOPPED, Event.SLAP);
+  assert.equal(next, State.IDLE);
+  assert.notEqual(next, State.RUNNING);
+});
+
+test('状态机: 三拍一轮，清零后再拍才开始新一轮', () => {
+  let s = State.IDLE;
+  s = nextState(s, Event.SLAP);   // 第一拍：开始
+  assert.equal(s, State.RUNNING);
+  s = nextState(s, Event.SLAP);   // 第二拍：停表
+  assert.equal(s, State.LOCKED);
+  s = nextState(s, Event.UNLOCK); // 锁定期满
+  assert.equal(s, State.STOPPED);
+  s = nextState(s, Event.SLAP);   // 第三拍：清零
+  assert.equal(s, State.IDLE);
+  s = nextState(s, Event.SLAP);   // 再拍：新一轮
+  assert.equal(s, State.RUNNING);
 });
 
 test('状态机: 非锁定状态收到 UNLOCK 时保持原状态', () => {
