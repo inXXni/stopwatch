@@ -55,6 +55,10 @@
     --ink-blue: #3d8bff;
     /* 带 ?green 时定格后转成的颜色，只用于普通模式 */
     --ink-green: #2dff6a;
+    /* 停表冲击环：各自数字颜色的浅色版（与白色约七三混合），压在同色数字上也看得见 */
+    --ink-hit: #ffc2bd;
+    --ink-blue-hit: #c4dcff;
+    --ink-green-hit: #c0ffd2;
     /* PK 模式中间「VS」的颜色，与两侧细线的颜色 */
     --ink-vs: #ffb020;
     --rule: #3a3a3a;
@@ -83,6 +87,7 @@
     display: flex;
     flex-direction: column;
     cursor: pointer;
+    position: relative; /* 停表冲击环的定位容器 */
     /* 取边距与系统安全区的较大者，横屏时数字才不会被刘海挡住 */
     padding-top: max(4vmin, env(safe-area-inset-top, 0px));
     padding-right: max(4vmin, env(safe-area-inset-right, 0px));
@@ -131,8 +136,27 @@
     color: var(--ink-green);
   }
 
+  /* 停表冲击环：停表时 hit.js 把它挪到这一格数字的中心，从那里扩散出去。
+     平时尺寸为 0、不可见。两格的数字带 filter，各自成层，环要提一层才能盖住另一格的数字；
+     PK 模式下 VS 再高一层，压在环上面。见 docs/superpowers/specs/2026-10-29-stop-hit-design.md */
+  .hit-ring {
+    position: absolute;
+    z-index: 1;
+    width: 0;
+    height: 0;
+    border: 0 solid var(--ink-hit);
+    border-radius: 50%;
+    transform: translate(-50%, -50%);
+    opacity: 0;
+    pointer-events: none;
+  }
+
+  /* 带 ?green 时停表这一刻数字转绿，环跟着用浅绿（只出现在普通模式） */
+  :root[data-green-stop] .hit-ring { border-color: var(--ink-green-hit); }
+
   /* PK 模式：上格红方、下格蓝方，各状态下都是阵营色 */
   :root[data-pk] .slot[data-side="blue"] { color: var(--ink-blue); }
+  :root[data-pk] .slot[data-side="blue"] .hit-ring { border-color: var(--ink-blue-hit); }
 
   /* 两格之间的 VS 分隔条 */
   .vs {
@@ -158,7 +182,7 @@
      见 docs/superpowers/specs/2026-10-29-vs-slam-design.md */
   .vs-box {
     position: relative;
-    z-index: 1; /* 冲击环要盖在两格上面 */
+    z-index: 2; /* 砸入的冲击环要盖在两格上面，VS 也要压住停表冲击环（z-index 1） */
   }
 
   /* 行内元素不能做 transform，砸入的缩放旋转要求块级盒 */
@@ -260,6 +284,7 @@
         <text class="ghost" x="0" y="0" text-anchor="end">88.88</text>
         <text class="value" x="0" y="0" text-anchor="end">0.00</text>
       </svg>
+      <span class="hit-ring"></span>
     </div>
     <div class="vs" aria-hidden="true"><span class="vs-box"><span class="vs-text">VS</span><span class="vs-ring"></span></span></div>
     <div class="slot" data-side="blue" data-slot-state="empty">
@@ -268,6 +293,7 @@
         <text class="ghost" x="0" y="0" text-anchor="end">88.88</text>
         <text class="value" x="0" y="0" text-anchor="end">0.00</text>
       </svg>
+      <span class="hit-ring"></span>
     </div>
   </div>
   <script type="module" src="./app.js"></script>
