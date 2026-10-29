@@ -14,17 +14,31 @@ const HARMONICS = [0, 1, 0.15, 0.041];
 // 被下一拍打断时上一声的淡出时长。直接掐断会有「咔」的爆音
 const CUT_FADE = 0.005;
 
-// 停表那一拍的低音「咚」，参数见 docs/superpowers/specs/2026-10-29-stop-burst-design.md 第 4 节。
+// 停表那一拍的低音「咚」，参数见 docs/superpowers/specs/2026-10-29-stop-burst-design.md 第 4 节，
+// 音量后来放大到 3 倍，见 2026-10-29-thump-loud-design.md。
 // 手机喇叭放不出真正的低音，所以从中频往下滑，小喇叭也听得出分量
 export const THUMP_FROM = 300; // Hz
 export const THUMP_TO = 70; // Hz
 const THUMP_SWEEP = 0.14; // 音高滑下去用的时间，s
-const THUMP_GAIN = 0.7;
+export const THUMP_GAIN = 2.1; // 超过满幅，由共用出口软压下来
 const THUMP_LENGTH = 0.32; // s
 // 敲击声：一小段快速衰减的白噪声，经低通去掉刺耳的高频
 const CLICK_LENGTH = 0.03; // s
 const CLICK_LOWPASS = 2500; // Hz
-const CLICK_GAIN = 0.5;
+export const CLICK_GAIN = 1.5;
+
+// 共用出口：滴和咚都先经过它再送到喇叭。幅度在 KNEE 以内原样通过，滴的峰值就是 0.5，所以滴一点不变；
+// 超过的部分用 tanh 软压，最高趋近 KNEE + SOFT = 0.95，咚放大以后、和滴叠在一起都不会被硬削顶
+const KNEE = 0.5;
+const SOFT = 0.45;
+const CURVE_RANGE = 4; // 曲线覆盖输入 −4～4
+const CURVE_POINTS = 4096;
+
+/** 共用出口的软限幅曲线 */
+export function softClip(x) {
+  const a = Math.abs(x);
+  return Math.sign(x) * (a <= KNEE ? a : KNEE + SOFT * Math.tanh((a - KNEE) / SOFT));
+}
 
 /**
  * 一声提示音的音量包络：从 t 开始的 [时刻, 增益] 列表，按时间先后排列，相邻两点之间线性过渡。
@@ -50,6 +64,7 @@ export function createBeeper({
 } = {}) {
   let ctx = null;
   let wave = null;
+  let outlet = null; // 共用出口的入口
   let current = null; // 正在响的那一声：{ osc, amp }
 
   // 浏览器只允许在用户操作中启动音频。第一次发声发生在拍击里，本身就是用户操作
@@ -58,6 +73,22 @@ export function createBeeper({
     // 切到别的应用再回来时，音频环境可能被系统挂起
     if (ctx.state !== 'running') Promise.resolve(ctx.resume()).catch(() => {});
     return ctx;
+  }
+
+  // 共用出口，第一次发声时建，之后一直复用。WaveShaper 把输入的 −1～1 映射到整条曲线，
+  // 曲线覆盖 −4～4，所以先乘 1/4 再送进去。不做过采样：过采样的滤波会让峰值冲过 0.95，出「咔」声
+  function output() {
+    if (!outlet) {
+      const curve = new Float32Array(CURVE_POINTS);
+      for (let i = 0; i < CURVE_POINTS; i++) curve[i] = softClip(((i / (CURVE_POINTS - 1)) * 2 - 1) * CURVE_RANGE);
+      const shaper = ctx.createWaveShaper();
+      shaper.curve = curve;
+      shaper.oversample = 'none';
+      outlet = ctx.createGain();
+      outlet.gain.value = 1 / CURVE_RANGE;
+      outlet.connect(shaper).connect(ctx.destination);
+    }
+    return outlet;
   }
 
   // 一拍一声：上一声没响完就淡出停掉，不叠在一起
@@ -93,7 +124,7 @@ export function createBeeper({
       const [[t0, v0], ...rest] = beepEnvelope(t, gain);
       amp.gain.setValueAtTime(v0, t0);
       for (const [time, value] of rest) amp.gain.linearRampToValueAtTime(value, time);
-      osc.connect(amp).connect(ctx.destination);
+      osc.connect(amp).connect(output());
       osc.start(t);
       osc.stop(rest.at(-1)[0]);
 
@@ -121,7 +152,7 @@ export function createBeeper({
       amp.gain.setValueAtTime(0.0001, t);
       amp.gain.exponentialRampToValueAtTime(THUMP_GAIN, t + 0.004);
       amp.gain.exponentialRampToValueAtTime(0.001, t + 0.3);
-      osc.connect(amp).connect(ctx.destination);
+      osc.connect(amp).connect(output());
       osc.start(t);
       osc.stop(t + THUMP_LENGTH);
 
@@ -136,7 +167,7 @@ export function createBeeper({
       lowpass.frequency.value = CLICK_LOWPASS;
       const clickAmp = ctx.createGain();
       clickAmp.gain.value = CLICK_GAIN;
-      click.connect(lowpass).connect(clickAmp).connect(ctx.destination);
+      click.connect(lowpass).connect(clickAmp).connect(output());
       click.start(t);
     } catch {
       // 同 beep：任何音频错误都不能影响计时

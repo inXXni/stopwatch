@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { beepEnvelope, createBeeper, BEEP_FREQ, THUMP_FROM, THUMP_TO } from '../beep.js';
+import { beepEnvelope, createBeeper, softClip, BEEP_FREQ, THUMP_FROM, THUMP_TO, THUMP_GAIN, CLICK_GAIN } from '../beep.js';
 
 test('包络: 从 0 开始，0.4 秒后回到 0', () => {
   const env = beepEnvelope(10, 0.5);
@@ -24,7 +24,7 @@ test('包络: 时间点逐个递增', () => {
 
 // 假的音频环境：只记录调用，不出声
 function fakeAudio() {
-  const log = { contexts: 0, resumed: 0, ctx: null, oscillators: [], sources: [] };
+  const log = { contexts: 0, resumed: 0, ctx: null, oscillators: [], sources: [], gains: [], shapers: [] };
   class Param {
     constructor(v) { this.value = v; this.ramps = []; }
     setValueAtTime(v) { this.value = v; }
@@ -32,7 +32,7 @@ function fakeAudio() {
     exponentialRampToValueAtTime(v, t) { this.ramps.push([v, t]); }
     cancelScheduledValues() {}
   }
-  class Node { connect(next) { return next; } }
+  class Node { connect(next) { this.next = next; return next; } }
   class Ctx {
     constructor() {
       log.contexts++;
@@ -44,7 +44,8 @@ function fakeAudio() {
     }
     resume() { log.resumed++; this.state = 'running'; return Promise.resolve(); }
     createPeriodicWave() { return {}; }
-    createGain() { const g = new Node(); g.gain = new Param(1); return g; }
+    createGain() { const g = new Node(); g.gain = new Param(1); log.gains.push(g); return g; }
+    createWaveShaper() { const w = new Node(); w.curve = null; w.oversample = 'unset'; log.shapers.push(w); return w; }
     createBiquadFilter() { const f = new Node(); f.frequency = new Param(350); return f; }
     createBuffer(channels, length) {
       const data = new Float32Array(length);
@@ -149,4 +150,52 @@ test('咚: 浏览器没有 Web Audio 或音频出错时静默跳过', () => {
   assert.doesNotThrow(() => createBeeper({ AudioContextClass: null }).thump());
   class Broken { constructor() { throw new Error('boom'); } }
   assert.doesNotThrow(() => createBeeper({ AudioContextClass: Broken }).thump());
+});
+
+test('出口: 0.5 以内原样通过，滴的峰值一点不变', () => {
+  for (const x of [0, 0.1, 0.3, 0.5, -0.2, -0.5]) assert.equal(softClip(x), x);
+});
+
+test('出口: 超过 0.5 软压，单调、正负对称，不超过 0.95', () => {
+  let prev = softClip(0.5);
+  for (let x = 0.55; x <= 10; x += 0.05) {
+    const y = softClip(x);
+    assert.ok(y >= prev && y <= 0.95 + 1e-12, `x=${x} y=${y}`);
+    assert.equal(softClip(-x), -y);
+    prev = y;
+  }
+  assert.ok(softClip(4) > 0.94, `输入 4 时 ${softClip(4)}`);
+});
+
+test('出口: 滴和咚都接到同一个出口，出口经软限幅接到喇叭，只建一次', () => {
+  const { Ctx, log } = fakeAudio();
+  const beeper = createBeeper({ AudioContextClass: Ctx });
+  beeper.beep();
+  beeper.thump();
+  beeper.beep();
+  assert.equal(log.shapers.length, 1, '出口只建一次');
+  const [shaper] = log.shapers;
+  assert.equal(shaper.next, log.ctx.destination);
+  assert.equal(shaper.oversample, 'none');
+  assert.equal(shaper.curve.length, 4096);
+  assert.equal(shaper.curve[0], Math.fround(softClip(-4)));
+  assert.equal(shaper.curve[4095], Math.fround(softClip(4)));
+  const outlet = log.gains.find((g) => g.next === shaper);
+  assert.ok(outlet, '出口的入口是一个增益节点');
+  assert.equal(outlet.gain.value, 0.25);
+  const [beep1, thump, beep2] = log.oscillators;
+  assert.equal(beep1.next.next, outlet, '滴接到出口');
+  assert.equal(beep2.next.next, outlet);
+  assert.equal(thump.next.next, outlet, '咚的三角波接到出口');
+  assert.equal(log.sources[0].next.next.next, outlet, '敲击噪声经低通、增益接到出口');
+});
+
+test('咚: 三角波峰值增益 2.1、敲击噪声增益 1.5，都是原来的 3 倍', () => {
+  assert.equal(THUMP_GAIN, 2.1);
+  assert.equal(CLICK_GAIN, 1.5);
+  const { Ctx, log } = fakeAudio();
+  createBeeper({ AudioContextClass: Ctx }).thump();
+  const [o] = log.oscillators;
+  assert.deepEqual(o.next.gain.ramps, [[THUMP_GAIN, 0.004], [0.001, 0.3]]);
+  assert.equal(log.sources[0].next.next.gain.value, CLICK_GAIN);
 });
