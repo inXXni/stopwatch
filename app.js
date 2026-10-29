@@ -129,11 +129,15 @@ function startTiming(timeStamp, display) {
   if (rafId === null) rafId = requestAnimationFrame(tick);
 }
 
-function stopTiming(timeStamp) {
+function stopTicking() {
   if (rafId !== null) {
     cancelAnimationFrame(rafId);
     rafId = null;
   }
+}
+
+function stopTiming(timeStamp) {
+  stopTicking();
   activeDisplay.render(formatTime(timeStamp - startAt));
 }
 
@@ -192,6 +196,18 @@ function handleSlapPk(timeStamp) {
   paintSlots(pkSlotStates(pkState));
 }
 
+// 点 VS 清零：不出声，计时中的那一格不停表、不播爆裂，直接归零。
+// 已经在等红方拍时状态不变，照样砸一次，让人知道点到了
+function resetPk() {
+  const next = nextPkState(pkState, Event.RESET);
+  if (next !== PkState.WAIT_P1) return; // 锁定期内被挡住
+  pkState = next;
+  stopTicking();
+  displays.forEach((d) => d.render(formatTime(0)));
+  paintSlots(pkSlotStates(pkState));
+  slam();
+}
+
 const handleSlap = isPk ? handleSlapPk : handleSlapSingle;
 
 // 拍一下。除了清屏那一拍，每拍都响一声「滴——」，锁定期内被吞掉的拍也响：
@@ -203,12 +219,21 @@ function slap(timeStamp) {
   if (beeps) beeper.beep();
 }
 
+// 按落点位置判断，不看事件落在哪个元素上：砸入开头 VS 文字放大到 3.4 倍（透明），
+// 按元素判断的话，清场后紧跟的那一拍落在 VS 附近，会被当成点 VS
+const vsBox = stage.querySelector('.vs-box');
+function onVs(e) {
+  const r = vsBox.getBoundingClientRect();
+  return e.clientX >= r.left && e.clientX < r.right && e.clientY >= r.top && e.clientY < r.bottom;
+}
+
 function onPointerDown(e) {
   // 只认第一根落下的手指，同时落下的其余手指一律忽略
   if (activePointerId !== null) return;
   activePointerId = e.pointerId;
   e.preventDefault();
-  slap(e.timeStamp);
+  if (isPk && onVs(e)) resetPk();
+  else slap(e.timeStamp);
 }
 
 function onPointerEnd(e) {
