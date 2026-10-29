@@ -104,6 +104,7 @@
     justify-content: center;
     /* 颜色挂在格子上，数字和色条都用 currentColor 跟着走 */
     color: var(--ink);
+    --hit: var(--ink-hit); /* 停表冲击环与放射线的颜色 */
     transition: color 80ms linear;
   }
 
@@ -136,27 +137,41 @@
     color: var(--ink-green);
   }
 
-  /* 停表冲击环：停表时 hit.js 把它挪到这一格数字的中心，从那里扩散出去。
-     平时尺寸为 0、不可见。两格的数字带 filter，各自成层，环要提一层才能盖住另一格的数字；
-     PK 模式下 VS 再高一层，压在环上面。见 docs/superpowers/specs/2026-10-29-stop-hit-design.md */
+  /* 停表爆裂的两道冲击环与放射线：停表时 hit.js 把它们挪到这一格数字的中心，从那里扩散出去。
+     平时不可见。两格的数字带 filter，各自成层，要提一层才能盖住另一格的数字；
+     PK 模式下 VS 再高一层，压在上面。见 docs/superpowers/specs/2026-10-29-stop-burst-design.md */
   .hit-ring {
     position: absolute;
     z-index: 1;
     width: 0;
     height: 0;
-    border: 0 solid var(--ink-hit);
+    border: 0 solid var(--hit);
     border-radius: 50%;
     transform: translate(-50%, -50%);
     opacity: 0;
     pointer-events: none;
   }
 
-  /* 带 ?green 时停表这一刻数字转绿，环跟着用浅绿（只出现在普通模式） */
-  :root[data-green-stop] .hit-ring { border-color: var(--ink-green-hit); }
+  /* 放射线的 SVG 宽高与 viewBox 都是 120，线的坐标与线宽因此直接是 vmin */
+  .hit-lines {
+    position: absolute;
+    z-index: 1;
+    width: 120vmin;
+    height: 120vmin;
+    overflow: visible;
+    transform: translate(-50%, -50%);
+    opacity: 0;
+    pointer-events: none;
+    stroke: var(--hit);
+    stroke-width: 0.8;
+    stroke-linecap: round;
+  }
+
+  /* 带 ?green 时停表这一刻数字转绿，环与放射线跟着用浅绿（只出现在普通模式） */
+  :root[data-green-stop] .slot { --hit: var(--ink-green-hit); }
 
   /* PK 模式：上格红方、下格蓝方，各状态下都是阵营色 */
-  :root[data-pk] .slot[data-side="blue"] { color: var(--ink-blue); }
-  :root[data-pk] .slot[data-side="blue"] .hit-ring { border-color: var(--ink-blue-hit); }
+  :root[data-pk] .slot[data-side="blue"] { color: var(--ink-blue); --hit: var(--ink-blue-hit); }
 
   /* 两格之间的 VS 分隔条 */
   .vs {
@@ -285,6 +300,8 @@
         <text class="value" x="0" y="0" text-anchor="end">0.00</text>
       </svg>
       <span class="hit-ring"></span>
+      <span class="hit-ring"></span>
+      <svg class="hit-lines" viewBox="-60 -60 120 120" aria-hidden="true"></svg>
     </div>
     <div class="vs" aria-hidden="true"><span class="vs-box"><span class="vs-text">VS</span><span class="vs-ring"></span></span></div>
     <div class="slot" data-side="blue" data-slot-state="empty">
@@ -294,6 +311,8 @@
         <text class="value" x="0" y="0" text-anchor="end">0.00</text>
       </svg>
       <span class="hit-ring"></span>
+      <span class="hit-ring"></span>
+      <svg class="hit-lines" viewBox="-60 -60 120 120" aria-hidden="true"></svg>
     </div>
   </div>
   <script type="module" src="./app.js"></script>

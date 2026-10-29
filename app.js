@@ -5,7 +5,7 @@ import {
 import { createDisplay, spineDigitsWidth } from './display.js';
 import { createBeeper } from './beep.js';
 import { slamIn } from './slam.js';
-import { stopHit } from './hit.js';
+import { stopHit, BURST_LINES } from './hit.js';
 
 const LOCK_MS = 500; // 停表后的封锁时长，防手掌反弹与多指造成的二次触发
 
@@ -38,13 +38,24 @@ function slam() {
   slamIn(vsParts);
 }
 
-// 停表那一刻冲击停表那一格：整屏抖、数字弹、冲击环扩散。普通模式只用第一格
+// 停表那一刻冲击停表那一格：顿帧、镜头推近、色散，随后整屏抖、放射线与两道环扩散，
+// 同时响一声「咚」。普通模式只用第一格
 const hitParts = slots.map((slot) => ({
   digits: slot.querySelector('.display'),
-  ring: slot.querySelector('.hit-ring'),
+  rings: [...slot.querySelectorAll('.hit-ring')],
+  lines: slot.querySelector('.hit-lines'),
   stage,
+  camera: document.body,
 }));
+for (const { lines } of hitParts) {
+  for (const coords of BURST_LINES) {
+    const line = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+    for (const [k, v] of Object.entries(coords)) line.setAttribute(k, v);
+    lines.append(line);
+  }
+}
 function hit(i) {
+  beeper.thump(); // 声音不是动态效果，不受「减弱动态效果」影响
   if (reducedMotion()) return;
   stopHit(hitParts[i]);
 }
@@ -141,7 +152,7 @@ function handleSlapSingle(timeStamp) {
     startTiming(timeStamp, displays[0]);
   } else if (next === State.LOCKED) {
     stopTiming(timeStamp);
-    hit(0); // 成绩已经写好，动画在锁定期内播完
+    hit(0); // 成绩已经写好，之后才播
     clearTimeout(unlockTimer);
     unlockTimer = setTimeout(() => {
       state = nextState(state, Event.UNLOCK);
@@ -167,7 +178,7 @@ function handleSlapPk(timeStamp) {
     startTiming(timeStamp, displays[1]);
   } else if (next === PkState.LOCK_P1 || next === PkState.LOCK_P2) {
     stopTiming(timeStamp);
-    hit(next === PkState.LOCK_P1 ? 0 : 1); // 成绩已经写好，动画在锁定期内播完
+    hit(next === PkState.LOCK_P1 ? 0 : 1); // 成绩已经写好，之后才播
     clearTimeout(unlockTimer);
     unlockTimer = setTimeout(() => {
       pkState = nextPkState(pkState, Event.UNLOCK);
