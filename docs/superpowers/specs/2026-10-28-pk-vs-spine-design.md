@@ -70,6 +70,8 @@ VS 挪到旁边后，两行之间只需留一道窄缝，数字反而比现在�
 | 颜色 | 琥珀色 `#ffb020`（即现有的 `--ink-vs`） |
 | 光晕 | `text-shadow: 0 0 1.2vmin rgba(255, 176, 32, 0.5)` |
 
+新一轮开始时 VS 会从屏幕外砸下来，见 `2026-10-29-vs-slam-design.md`。
+
 `system-ui` 在 Android 上是 Roboto，在苹果设备上是 San Francisco，字形宽度不同。
 在 Mac 的 Chrome 上实测 VS 宽约 24.4vmin，脊柱列取 26vmin 留了余量；
 个别系统上 VS 若略宽，只会伸进两侧空白，不会碰到数字。
