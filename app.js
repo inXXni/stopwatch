@@ -5,6 +5,7 @@ import {
 import { createDisplay, spineDigitsWidth } from './display.js';
 import { createBeeper } from './beep.js';
 import { slamIn } from './slam.js';
+import { stopHit } from './hit.js';
 
 const LOCK_MS = 500; // 停表后的封锁时长，防手掌反弹与多指造成的二次触发
 
@@ -23,15 +24,29 @@ if (isPk) document.documentElement.dataset.pk = '';
 const stage = document.getElementById('stage');
 const slots = [...stage.querySelectorAll('.slot')];
 
-// 新一轮开始时 VS 砸下来：打开页面一次、每次清场一次。开了「减弱动态效果」就不砸
+// 开了「减弱动态效果」就不播砸入与停表冲击
+const reducedMotion = () => matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+// 新一轮开始时 VS 砸下来：打开页面一次、每次清场一次
 const vsParts = {
   text: stage.querySelector('.vs-text'),
   ring: stage.querySelector('.vs-ring'),
   stage,
 };
 function slam() {
-  if (!isPk || matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+  if (!isPk || reducedMotion()) return;
   slamIn(vsParts);
+}
+
+// 停表那一刻冲击停表那一格：整屏抖、数字弹、冲击环扩散。普通模式只用第一格
+const hitParts = slots.map((slot) => ({
+  digits: slot.querySelector('.display'),
+  ring: slot.querySelector('.hit-ring'),
+  stage,
+}));
+function hit(i) {
+  if (reducedMotion()) return;
+  stopHit(hitParts[i]);
 }
 
 // PK 模式的排版要按数字的实际渲染尺寸来定，CSS 算不出来，由这里量好写回：
@@ -126,6 +141,7 @@ function handleSlapSingle(timeStamp) {
     startTiming(timeStamp, displays[0]);
   } else if (next === State.LOCKED) {
     stopTiming(timeStamp);
+    hit(0); // 成绩已经写好，动画在锁定期内播完
     clearTimeout(unlockTimer);
     unlockTimer = setTimeout(() => {
       state = nextState(state, Event.UNLOCK);
@@ -151,6 +167,7 @@ function handleSlapPk(timeStamp) {
     startTiming(timeStamp, displays[1]);
   } else if (next === PkState.LOCK_P1 || next === PkState.LOCK_P2) {
     stopTiming(timeStamp);
+    hit(next === PkState.LOCK_P1 ? 0 : 1); // 成绩已经写好，动画在锁定期内播完
     clearTimeout(unlockTimer);
     unlockTimer = setTimeout(() => {
       pkState = nextPkState(pkState, Event.UNLOCK);
