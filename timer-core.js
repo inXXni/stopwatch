@@ -24,6 +24,7 @@ export const State = {
 export const Event = {
   SLAP: 'SLAP',     // 拍击
   UNLOCK: 'UNLOCK', // 锁定期结束
+  RESET: 'RESET',   // 点 VS 清零，只有 PK 模式认
 };
 
 /**
@@ -73,6 +74,9 @@ export function ghostOf(text) {
  *
  * 两个 LOCK 状态各自在 500ms 后由 UNLOCK 事件推进，用途与普通模式一致：
  * 挡掉手掌反弹与多指造成的二次触发。
+ *
+ * RESET 是点 VS 清零：锁定期以外，不管在哪一步都回到 WAIT_P1。
+ * 锁定期照样挡住，停表那一拍的手掌弹起再落到 VS 上，不能把刚停下的成绩清掉。
  */
 export const PkState = {
   WAIT_P1: 'WAIT_P1', // 两格皆空，等上格开始
@@ -102,6 +106,9 @@ export function nextPkState(state, event) {
     if (state === PkState.LOCK_P1) return PkState.WAIT_P2;
     if (state === PkState.LOCK_P2) return PkState.RESULT;
     return state;
+  }
+  if (event === Event.RESET) {
+    return state === PkState.LOCK_P1 || state === PkState.LOCK_P2 ? state : PkState.WAIT_P1;
   }
   return state;
 }
