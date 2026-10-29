@@ -4,7 +4,7 @@ import {
 } from './timer-core.js';
 import { createDisplay, spineDigitsWidth } from './display.js';
 import { createBeeper } from './beep.js';
-import { slamIn } from './slam.js';
+import { drawInkVs, writeIn } from './ink-vs.js';
 import { stopHit, BURST_LINES } from './hit.js';
 
 const LOCK_MS = 500; // 停表后的封锁时长，防手掌反弹与多指造成的二次触发
@@ -24,18 +24,15 @@ if (isPk) document.documentElement.dataset.pk = '';
 const stage = document.getElementById('stage');
 const slots = [...stage.querySelectorAll('.slot')];
 
-// 开了「减弱动态效果」就不播砸入与停表冲击
+// 开了「减弱动态效果」就不写 VS、不播停表冲击
 const reducedMotion = () => matchMedia('(prefers-reduced-motion: reduce)').matches;
 
-// 新一轮开始时 VS 砸下来：打开页面一次、每次清场一次
-const vsParts = {
-  text: stage.querySelector('.vs-text'),
-  ring: stage.querySelector('.vs-ring'),
-  stage,
-};
-function slam() {
+// VS 是程序画的毛笔字，只有 PK 模式才画。新一轮开始时一笔笔写出来：
+// 打开页面一次、每次清场一次、点 VS 清零一次
+const vsParts = isPk ? drawInkVs(stage.querySelector('.vs-ink')) : null;
+function writeVs() {
   if (!isPk || reducedMotion()) return;
-  slamIn(vsParts);
+  writeIn(vsParts);
 }
 
 // 停表那一刻冲击停表那一格：顿帧、镜头推近、色散，随后整屏抖、放射线与两道环扩散，
@@ -190,14 +187,14 @@ function handleSlapPk(timeStamp) {
     }, LOCK_MS);
   } else if (next === PkState.WAIT_P1) {
     displays.forEach((d) => d.render(formatTime(0))); // 清场
-    slam();
+    writeVs();
   }
 
   paintSlots(pkSlotStates(pkState));
 }
 
 // 点 VS 清零：不出声，计时中的那一格不停表、不播爆裂，直接归零。
-// 已经在等红方拍时状态不变，照样砸一次，让人知道点到了
+// 已经在等红方拍时状态不变，照样写一次，让人知道点到了
 function resetPk() {
   const next = nextPkState(pkState, Event.RESET);
   if (next !== PkState.WAIT_P1) return; // 锁定期内被挡住
@@ -205,7 +202,7 @@ function resetPk() {
   stopTicking();
   displays.forEach((d) => d.render(formatTime(0)));
   paintSlots(pkSlotStates(pkState));
-  slam();
+  writeVs();
 }
 
 const handleSlap = isPk ? handleSlapPk : handleSlapSingle;
@@ -219,7 +216,7 @@ function slap(timeStamp) {
   if (beeps) beeper.beep();
 }
 
-// 按落点位置判断，不看事件落在哪个元素上：砸入开头 VS 文字放大到 3.4 倍（透明），
+// 按落点位置判断，不看事件落在哪个元素上：VS 的墨点与光晕画到框外，写完那一下整个字还会放大，
 // 按元素判断的话，清场后紧跟的那一拍落在 VS 附近，会被当成点 VS
 const vsBox = stage.querySelector('.vs-box');
 function onVs(e) {
@@ -242,10 +239,10 @@ function onPointerEnd(e) {
 
 paintSlots(isPk ? pkSlotStates(pkState) : [slotStateOf(state), SlotState.EMPTY]);
 // 字体是异步加载的，加载完字形尺寸才确定，必须重新量一次 viewBox。
-// 量完色条与 VS 才在最终位置上，这时 VS 砸入
+// 量完色条与 VS 才在最终位置上，这时写 VS
 (document.fonts ? document.fonts.ready : Promise.resolve()).then(() => {
   displays.forEach((d) => d.fit());
-  slam();
+  writeVs();
 });
 
 stage.addEventListener('pointerdown', onPointerDown, { passive: false });

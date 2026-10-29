@@ -59,8 +59,10 @@
     --ink-hit: #ffc2bd;
     --ink-blue-hit: #c4dcff;
     --ink-green-hit: #c0ffd2;
-    /* PK 模式中间「VS」的颜色，与两侧细线的颜色 */
-    --ink-vs: #ffb020;
+    /* PK 模式中间毛笔「VS」的墨色与光晕色 */
+    --ink-vs: #ff9214;
+    --ink-vs-glow: #ff5200;
+    /* VS 两侧细线的颜色 */
     --rule: #3a3a3a;
     /* 没通电的段透出的暗色，LED 显示屏最有辨识度的细节 */
     --ghost-opacity: 0.12;
@@ -181,7 +183,7 @@
     align-items: center;
     gap: 3vmin;
     color: var(--ink-vs);
-    font: 500 5vmin/1 system-ui, sans-serif;
+    --vs-h: 7vmin;
   }
 
   .vs::before,
@@ -192,30 +194,27 @@
     background: var(--rule);
   }
 
-  /* VS 分三层：.vs-box 是黑底与冲击环的定位容器，.vs-text 是文字，.vs-ring 是冲击环。
-     新一轮开始时 slam.js 让文字砸下来、冲击环扩散，黑底不动。
-     见 docs/superpowers/specs/2026-10-29-vs-slam-design.md */
+  /* VS 是程序画的毛笔字：.vs-box 是黑底，也是点 VS 清零的判定范围；.vs-ink 里的笔画由 ink-vs.js 画出，
+     新一轮开始时一笔笔写出来。见 docs/superpowers/specs/2026-10-29-vs-ink-design.md */
   .vs-box {
     position: relative;
-    z-index: 2; /* 砸入的冲击环要盖在两格上面，VS 也要压住停表冲击环（z-index 1） */
+    z-index: 2; /* VS 要压住停表冲击环（z-index 1） */
   }
 
-  /* 行内元素不能做 transform，砸入的缩放旋转要求块级盒 */
-  .vs-text { display: inline-block; }
-
-  /* 平时尺寸为 0、不可见；尺寸、线宽、不透明度都由砸入动画给出 */
-  .vs-ring {
-    position: absolute;
-    left: 50%;
-    top: 50%;
-    width: 0;
-    height: 0;
-    border: 0 solid #fff;
-    border-radius: 50%;
-    transform: translate(-50%, -50%);
-    opacity: 0;
-    pointer-events: none;
+  /* 148×100 的画框，高为字高。笔画、墨点与光晕会画到框外一点，不裁掉；
+     宽屏横屏里画框比黑底宽，不许被压窄 */
+  .vs-ink {
+    display: block;
+    flex: none;
+    height: var(--vs-h);
+    width: calc(var(--vs-h) * 1.48);
+    overflow: visible;
   }
+
+  /* 墨点从自身中心弹出 */
+  .vs-ink circle { transform-box: fill-box; transform-origin: center; }
+
+  .vs-ink-flood { flood-color: var(--ink-vs-glow); }
 
   /* 左侧色条：从轮到这一格起一直闪，停表才常亮，还没轮到的变暗。
      高度由 app.js 按数字的实际渲染高度设置，量到之前先不显示 */
@@ -246,15 +245,11 @@
      竖屏：数字受宽度限制，上下本来空着，VS 留在中间放大。
      其余横屏（iPad 等接近方形的屏幕）：两侧没有空白，保持上面的原样。 */
 
-  @media (orientation: portrait), (orientation: landscape) and (min-aspect-ratio: 16/9) {
-    :root[data-pk] .vs-text { text-shadow: 0 0 1.2vmin rgba(255, 176, 32, 0.5); }
-  }
-
   @media (orientation: portrait) {
     :root[data-pk] .vs {
       height: 15vmin;
       gap: 4vmin;
-      font: italic 900 11vmin/1 system-ui, sans-serif;
+      --vs-h: 14vmin;
     }
     :root[data-pk] .vs::before,
     :root[data-pk] .vs::after { height: 0.5vmin; }
@@ -276,16 +271,18 @@
     :root[data-pk] .vs {
       height: 3vmin;
       gap: 0;
-      font: italic 900 18vmin/1 system-ui, sans-serif;
+      --vs-h: 21vmin;
     }
     :root[data-pk] .vs::before,
     :root[data-pk] .vs::after { display: none; }
-    /* 黑底把两根色条在接缝处截断 */
+    /* 黑底把两根色条在接缝处截断。VS 比黑底宽，两边均匀溢出 */
     :root[data-pk] .vs-box {
       flex: none;
       width: 26vmin;
-      padding-block: 1vmin;
-      text-align: center;
+      height: 20vmin;
+      display: flex;
+      align-items: center;
+      justify-content: center;
       background: #000;
     }
   }
@@ -303,7 +300,7 @@
       <span class="hit-ring"></span>
       <svg class="hit-lines" viewBox="-60 -60 120 120" aria-hidden="true"></svg>
     </div>
-    <div class="vs" aria-hidden="true"><span class="vs-box"><span class="vs-text">VS</span><span class="vs-ring"></span></span></div>
+    <div class="vs" aria-hidden="true"><span class="vs-box"><svg class="vs-ink" viewBox="0 0 148 100"></svg></span></div>
     <div class="slot" data-side="blue" data-slot-state="empty">
       <div class="stripe"></div>
       <svg class="display" preserveAspectRatio="xMidYMid meet" aria-label="选手二计时">
