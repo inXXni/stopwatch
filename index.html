@@ -153,6 +153,31 @@
     background: var(--rule);
   }
 
+  /* VS 分三层：.vs-box 是黑底与冲击环的定位容器，.vs-text 是文字，.vs-ring 是冲击环。
+     新一轮开始时 slam.js 让文字砸下来、冲击环扩散，黑底不动。
+     见 docs/superpowers/specs/2026-10-29-vs-slam-design.md */
+  .vs-box {
+    position: relative;
+    z-index: 1; /* 冲击环要盖在两格上面 */
+  }
+
+  /* 行内元素不能做 transform，砸入的缩放旋转要求块级盒 */
+  .vs-text { display: inline-block; }
+
+  /* 平时尺寸为 0、不可见；尺寸、线宽、不透明度都由砸入动画给出 */
+  .vs-ring {
+    position: absolute;
+    left: 50%;
+    top: 50%;
+    width: 0;
+    height: 0;
+    border: 0 solid #fff;
+    border-radius: 50%;
+    transform: translate(-50%, -50%);
+    opacity: 0;
+    pointer-events: none;
+  }
+
   /* 左侧色条：从轮到这一格起一直闪，停表才常亮，还没轮到的变暗。
      高度由 app.js 按数字的实际渲染高度设置，量到之前先不显示 */
   .stripe {
@@ -183,7 +208,7 @@
      其余横屏（iPad 等接近方形的屏幕）：两侧没有空白，保持上面的原样。 */
 
   @media (orientation: portrait), (orientation: landscape) and (min-aspect-ratio: 16/9) {
-    :root[data-pk] .vs span { text-shadow: 0 0 1.2vmin rgba(255, 176, 32, 0.5); }
+    :root[data-pk] .vs-text { text-shadow: 0 0 1.2vmin rgba(255, 176, 32, 0.5); }
   }
 
   @media (orientation: portrait) {
@@ -216,15 +241,13 @@
     }
     :root[data-pk] .vs::before,
     :root[data-pk] .vs::after { display: none; }
-    /* 黑底把两根色条在接缝处截断；提到格子上层，否则会被下一格盖住 */
-    :root[data-pk] .vs span {
+    /* 黑底把两根色条在接缝处截断 */
+    :root[data-pk] .vs-box {
       flex: none;
       width: 26vmin;
       padding-block: 1vmin;
       text-align: center;
       background: #000;
-      position: relative;
-      z-index: 1;
     }
   }
 </style>
@@ -238,7 +261,7 @@
         <text class="value" x="0" y="0" text-anchor="end">0.00</text>
       </svg>
     </div>
-    <div class="vs" aria-hidden="true"><span>VS</span></div>
+    <div class="vs" aria-hidden="true"><span class="vs-box"><span class="vs-text">VS</span><span class="vs-ring"></span></span></div>
     <div class="slot" data-side="blue" data-slot-state="empty">
       <div class="stripe"></div>
       <svg class="display" preserveAspectRatio="xMidYMid meet" aria-label="选手二计时">
