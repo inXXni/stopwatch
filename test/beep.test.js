@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { beepEnvelope, createBeeper, BEEP_FREQ } from '../beep.js';
+import { beepEnvelope, createBeeper, BEEP_FREQ, THUMP_FROM, THUMP_TO } from '../beep.js';
 
 test('包络: 从 0 开始，0.4 秒后回到 0', () => {
   const env = beepEnvelope(10, 0.5);
@@ -24,11 +24,12 @@ test('包络: 时间点逐个递增', () => {
 
 // 假的音频环境：只记录调用，不出声
 function fakeAudio() {
-  const log = { contexts: 0, resumed: 0, ctx: null, oscillators: [] };
+  const log = { contexts: 0, resumed: 0, ctx: null, oscillators: [], sources: [] };
   class Param {
-    constructor(v) { this.value = v; }
+    constructor(v) { this.value = v; this.ramps = []; }
     setValueAtTime(v) { this.value = v; }
     linearRampToValueAtTime() {}
+    exponentialRampToValueAtTime(v, t) { this.ramps.push([v, t]); }
     cancelScheduledValues() {}
   }
   class Node { connect(next) { return next; } }
@@ -37,14 +38,27 @@ function fakeAudio() {
       log.contexts++;
       log.ctx = this;
       this.currentTime = 0;
+      this.sampleRate = 48000;
       this.state = 'suspended';
       this.destination = new Node();
     }
     resume() { log.resumed++; this.state = 'running'; return Promise.resolve(); }
     createPeriodicWave() { return {}; }
     createGain() { const g = new Node(); g.gain = new Param(1); return g; }
+    createBiquadFilter() { const f = new Node(); f.frequency = new Param(350); return f; }
+    createBuffer(channels, length) {
+      const data = new Float32Array(length);
+      return { length, getChannelData: () => data };
+    }
+    createBufferSource() {
+      const s = new Node();
+      s.start = (t) => { s.startAt = t; };
+      log.sources.push(s);
+      return s;
+    }
     createOscillator() {
       const o = new Node();
+      o.type = 'sine';
       o.frequency = new Param(440);
       o.stops = [];
       o.setPeriodicWave = () => {};
@@ -103,4 +117,36 @@ test('发声: 音频出错不抛出，不影响计时', () => {
   class Broken { constructor() { throw new Error('boom'); } }
   const beeper = createBeeper({ AudioContextClass: Broken });
   assert.doesNotThrow(() => beeper.beep());
+});
+
+test('咚: 三角波从 300 Hz 往下滑到 70 Hz，0.32 秒停，同时带一段敲击噪声', () => {
+  const { Ctx, log } = fakeAudio();
+  const beeper = createBeeper({ AudioContextClass: Ctx });
+  beeper.thump();
+  assert.equal(log.oscillators.length, 1);
+  const [o] = log.oscillators;
+  assert.equal(o.type, 'triangle');
+  assert.equal(o.frequency.value, THUMP_FROM);
+  assert.deepEqual(o.frequency.ramps, [[THUMP_TO, 0.14]]);
+  assert.equal(o.startAt, 0);
+  assert.deepEqual(o.stops, [0.32]);
+  assert.equal(log.sources.length, 1, '应当有一段敲击噪声');
+  assert.equal(log.sources[0].startAt, 0);
+});
+
+test('咚: 与滴共用音频环境，也不打断正在响的滴', () => {
+  const { Ctx, log } = fakeAudio();
+  const beeper = createBeeper({ AudioContextClass: Ctx });
+  beeper.beep();
+  log.ctx.currentTime = 0.1;
+  beeper.thump();
+  assert.equal(log.contexts, 1);
+  const [beep] = log.oscillators;
+  assert.deepEqual(beep.stops, [0.4], '滴应当照常响完');
+});
+
+test('咚: 浏览器没有 Web Audio 或音频出错时静默跳过', () => {
+  assert.doesNotThrow(() => createBeeper({ AudioContextClass: null }).thump());
+  class Broken { constructor() { throw new Error('boom'); } }
+  assert.doesNotThrow(() => createBeeper({ AudioContextClass: Broken }).thump());
 });
