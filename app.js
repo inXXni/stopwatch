@@ -4,6 +4,7 @@ import {
 } from './timer-core.js';
 import { createDisplay, spineDigitsWidth } from './display.js';
 import { createBeeper } from './beep.js';
+import { slamIn } from './slam.js';
 
 const LOCK_MS = 500; // 停表后的封锁时长，防手掌反弹与多指造成的二次触发
 
@@ -21,6 +22,17 @@ if (isPk) document.documentElement.dataset.pk = '';
 
 const stage = document.getElementById('stage');
 const slots = [...stage.querySelectorAll('.slot')];
+
+// 新一轮开始时 VS 砸下来：打开页面一次、每次清场一次。开了「减弱动态效果」就不砸
+const vsParts = {
+  text: stage.querySelector('.vs-text'),
+  ring: stage.querySelector('.vs-ring'),
+  stage,
+};
+function slam() {
+  if (!isPk || matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+  slamIn(vsParts);
+}
 
 // PK 模式的排版要按数字的实际渲染尺寸来定，CSS 算不出来，由这里量好写回：
 // - 色条和数字一样高。数字的实际高度由格子宽高与 viewBox 共同决定，
@@ -146,6 +158,7 @@ function handleSlapPk(timeStamp) {
     }, LOCK_MS);
   } else if (next === PkState.WAIT_P1) {
     displays.forEach((d) => d.render(formatTime(0))); // 清场
+    slam();
   }
 
   paintSlots(pkSlotStates(pkState));
@@ -175,8 +188,12 @@ function onPointerEnd(e) {
 }
 
 paintSlots(isPk ? pkSlotStates(pkState) : [slotStateOf(state), SlotState.EMPTY]);
-// 字体是异步加载的，加载完字形尺寸才确定，必须重新量一次 viewBox
-if (document.fonts) document.fonts.ready.then(() => displays.forEach((d) => d.fit()));
+// 字体是异步加载的，加载完字形尺寸才确定，必须重新量一次 viewBox。
+// 量完色条与 VS 才在最终位置上，这时 VS 砸入
+(document.fonts ? document.fonts.ready : Promise.resolve()).then(() => {
+  displays.forEach((d) => d.fit());
+  slam();
+});
 
 stage.addEventListener('pointerdown', onPointerDown, { passive: false });
 stage.addEventListener('pointerup', onPointerEnd);
