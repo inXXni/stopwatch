@@ -130,3 +130,10 @@ test('Service Worker: 页面用到的每个 JS 模块都在缓存清单里', () 
     assert.ok(assets.includes('./' + file), `缓存清单漏了 ${file}`);
   }
 });
+
+test('Service Worker: 安装时绕过浏览器的 HTTP 缓存取文件', () => {
+  // 不绕过的话，新版 SW 安装时可能拿到浏览器缓存里的旧 index.html、app.js
+  // （本地服务不写缓存头，浏览器按修改时间估算新鲜期；GitHub Pages 缓存 10 分钟），
+  // 新缓存里混进旧文件，刷新多少次都还是旧版
+  assert.match(read('sw.js'), /cache\.addAll\(ASSETS\.map\(\(url\) => new Request\(url, \{ cache: 'reload' \}\)\)\)/);
+});
