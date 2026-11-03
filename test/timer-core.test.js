@@ -171,21 +171,8 @@ test('PK 状态机: 非锁定状态收到 UNLOCK 时保持原状态', () => {
   }
 });
 
-test('PK 状态机: 锁定期以外收到 RESET 都回到等红方拍', () => {
-  for (const s of [PkState.WAIT_P1, PkState.RUN_P1, PkState.WAIT_P2, PkState.RUN_P2, PkState.RESULT]) {
-    assert.equal(nextPkState(s, Event.RESET), PkState.WAIT_P1, s);
-  }
-});
-
-test('PK 状态机: 锁定期内收到 RESET 不变，挡住手掌弹起再落到 VS 上', () => {
-  assert.equal(nextPkState(PkState.LOCK_P1, Event.RESET), PkState.LOCK_P1);
-  assert.equal(nextPkState(PkState.LOCK_P2, Event.RESET), PkState.LOCK_P2);
-});
-
-test('状态机: 普通模式不认 RESET', () => {
-  for (const s of Object.values(State)) {
-    assert.equal(nextState(s, Event.RESET), s, s);
-  }
+test('事件: 只有拍击与锁定期结束，点 VS 清零已撤掉', () => {
+  assert.deepEqual(Object.keys(Event), ['SLAP', 'UNLOCK']);
 });
 
 test('PK 状态机: 未知事件与未知状态原样返回', () => {
