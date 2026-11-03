@@ -383,3 +383,14 @@ git commit -m "docs: 撤掉点 VS 清零计划记下执行中的调整"
 
 Run: `npm test 2>&1 | grep -E "^not ok|ℹ (tests|pass|fail)"`
 Expected: 全部 pass
+
+---
+
+## 执行中的调整
+
+无，按计划逐步完成。
+
+- 单元测试：`test/timer-core.test.js` 45 个全部 pass（三个 RESET 测试换成一个），全部 102 个 pass。
+- `vs-tap-check.mjs` 16 条全部 OK：iPad 横屏 1180×820、iPad 竖屏 820×1180、手机横屏 800×360、手机竖屏 360×708 下，
+  计时中点 VS 停表出成绩（00.47），等红方拍时点 VS 开始，两人都停后点 VS 清场且 VS 写一次，没有脚本错误。
+- 8080 已重启，提供 v24。
