@@ -28,7 +28,7 @@ const slots = [...stage.querySelectorAll('.slot')];
 const reducedMotion = () => matchMedia('(prefers-reduced-motion: reduce)').matches;
 
 // VS 是程序画的毛笔字，只有 PK 模式才画。新一轮开始时一笔笔写出来：
-// 打开页面一次、每次清场一次、点 VS 清零一次
+// 打开页面一次、每次清场一次
 const vsParts = isPk ? drawInkVs(stage.querySelector('.vs-ink')) : null;
 function writeVs() {
   if (!isPk || reducedMotion()) return;
@@ -193,18 +193,6 @@ function handleSlapPk(timeStamp) {
   paintSlots(pkSlotStates(pkState));
 }
 
-// 点 VS 清零：不出声，计时中的那一格不停表、不播爆裂，直接归零。
-// 已经在等红方拍时状态不变，照样写一次，让人知道点到了
-function resetPk() {
-  const next = nextPkState(pkState, Event.RESET);
-  if (next !== PkState.WAIT_P1) return; // 锁定期内被挡住
-  pkState = next;
-  stopTicking();
-  displays.forEach((d) => d.render(formatTime(0)));
-  paintSlots(pkSlotStates(pkState));
-  writeVs();
-}
-
 const handleSlap = isPk ? handleSlapPk : handleSlapSingle;
 
 // 拍一下。除了清屏那一拍，每拍都响一声「滴——」，锁定期内被吞掉的拍也响：
@@ -216,21 +204,12 @@ function slap(timeStamp) {
   if (beeps) beeper.beep();
 }
 
-// 按落点位置判断，不看事件落在哪个元素上：VS 的墨点与光晕画到框外，写完那一下整个字还会放大，
-// 按元素判断的话，清场后紧跟的那一拍落在 VS 附近，会被当成点 VS
-const vsBox = stage.querySelector('.vs-box');
-function onVs(e) {
-  const r = vsBox.getBoundingClientRect();
-  return e.clientX >= r.left && e.clientX < r.right && e.clientY >= r.top && e.clientY < r.bottom;
-}
-
 function onPointerDown(e) {
   // 只认第一根落下的手指，同时落下的其余手指一律忽略
   if (activePointerId !== null) return;
   activePointerId = e.pointerId;
   e.preventDefault();
-  if (isPk && onVs(e)) resetPk();
-  else slap(e.timeStamp);
+  slap(e.timeStamp);
 }
 
 function onPointerEnd(e) {
